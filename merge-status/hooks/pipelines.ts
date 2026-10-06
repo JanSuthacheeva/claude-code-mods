@@ -1,5 +1,5 @@
 import type { MergeRequest, Pipeline, ResolvedPipeline } from '../types'
-import type { MergeRequestDetails } from './gitlab'
+import type { MergeRequestDetails } from './forge'
 
 export interface PipelineContext {
   pushedSha: string | null
@@ -9,15 +9,7 @@ export interface PipelineContext {
 
 export type FailedMergeRequest = MergeRequest & { pipeline: ResolvedPipeline }
 
-const runningStatuses = new Set<Pipeline['status']>([
-  'awaiting',
-  'created',
-  'waiting_for_resource',
-  'preparing',
-  'pending',
-  'running',
-  'scheduled',
-])
+const runningStatuses = new Set<Pipeline['status']>(['awaiting', 'running'])
 const failedStatuses = new Set<Pipeline['status']>(['failed', 'canceled'])
 
 const runningPollMs = 30_000
@@ -32,10 +24,10 @@ export function hasFailed(pipeline: Pipeline | null): boolean {
 }
 
 export function resolvePipeline(details: MergeRequestDetails, context: PipelineContext): Pipeline | null {
-  const pipeline = details.head_pipeline
+  const pipeline = details.headPipeline
   const isPushPending = context.isWithinPushGrace && context.pushedSha !== null && details.sha !== context.pushedSha
   if (pipeline !== null && pipeline.sha === details.sha && !isPushPending) {
-    return { status: pipeline.status, id: pipeline.id, url: pipeline.web_url }
+    return { status: pipeline.status, id: pipeline.id, url: pipeline.url }
   }
 
   const isNewPipelineExpected = context.isWithinPushGrace && (pipeline !== null || context.hadPipeline)
@@ -43,7 +35,7 @@ export function resolvePipeline(details: MergeRequestDetails, context: PipelineC
 }
 
 export function needsPolling(mr: MergeRequest): boolean {
-  return mr.state === 'opened' && (isRunning(mr.pipeline) || hasFailed(mr.pipeline))
+  return mr.state === 'open' && (isRunning(mr.pipeline) || hasFailed(mr.pipeline))
 }
 
 export function pollIntervalMs(mergeRequests: readonly MergeRequest[]): number | null {
@@ -57,6 +49,6 @@ function isFailed(mr: MergeRequest): mr is FailedMergeRequest {
 }
 
 export function newlyFailed(before: readonly MergeRequest[], after: readonly MergeRequest[]): FailedMergeRequest[] {
-  const previous = new Map(before.map(mr => [mr.iid, mr.pipeline]))
-  return after.filter(isFailed).filter(mr => isRunning(previous.get(mr.iid) ?? null))
+  const previous = new Map(before.map(mr => [mr.number, mr.pipeline]))
+  return after.filter(isFailed).filter(mr => isRunning(previous.get(mr.number) ?? null))
 }

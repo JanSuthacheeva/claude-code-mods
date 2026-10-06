@@ -1,107 +1,125 @@
 import { expect, test } from 'claude-code/testing'
 
-import { installFakeHost, pipelineUrl, startSession, statusLine } from './fake-host'
+import type { ForgeName } from '../types'
+import { installFakeHost, pipelineUrl, projects, remoteUrls, startSession, statusLine } from './fake-host'
 import type { FakeMergeRequest, FakeRepo } from './fake-host'
+import { mergeRequest } from './fixtures'
+import { forgeNamed } from './forge'
 
 const minute = 60_000
 
-function repoWith(...mergeRequests: FakeMergeRequest[]): FakeRepo {
+const forges: ForgeName[] = ['gitlab', 'github']
+
+function repoWith(forge: ForgeName, ...mergeRequests: FakeMergeRequest[]): FakeRepo {
   return {
     branch: 'feature/x',
-    remoteUrl: 'git@gitlab.example.com:team/repo.git',
+    remoteUrl: remoteUrls[forge],
     upstreamShas: { 'feature/x': 'f1', develop: 'd1' },
     mergeRequests: { 'feature/x': mergeRequests, develop: [] },
   }
 }
 
 function openMergeRequest(overrides: Partial<FakeMergeRequest> = {}): FakeMergeRequest {
-  return { iid: 1, state: 'opened', targetBranch: 'develop', sha: 'f1', pipeline: null, ...overrides }
+  return { number: 1, state: 'open', targetBranch: 'develop', sha: 'f1', pipeline: null, ...overrides }
 }
 
-test('polls only the running pipeline until it passes, then only rechecks the list', async ($, on) => {
-  const running = openMergeRequest({ pipeline: { id: 10, status: 'running', sha: 'f1' } })
-  const passed = openMergeRequest({ iid: 2, targetBranch: 'main', pipeline: { id: 20, status: 'success', sha: 'f1' } })
-  const host = installFakeHost(on, repoWith(running, passed))
-  await startSession($, host)
-  expect(host.glabCalls).toHaveLength(3)
+for (const name of forges) {
+  const forge = forgeNamed(name)
+  const label = (number: number): string => `${forge.sigil}${String(number)}`
 
-  host.glabCalls.length = 0
-  await host.clock.advance(30_000)
-  expect(host.glabCalls).toEqual(['glab api projects/9/merge_requests/1'])
+  test(`${name}: polls only the running pipeline until it passes, then only rechecks the list`, async ($, on) => {
+    const running = openMergeRequest({ pipeline: { id: 10, status: 'running', sha: 'f1' } })
+    const passed = openMergeRequest({
+      number: 2,
+      targetBranch: 'main',
+      pipeline: { id: 20, status: 'success', sha: 'f1' },
+    })
+    const host = installFakeHost(on, repoWith(name, running, passed))
+    await startSession($, host)
+    expect(host.forgeCalls).toHaveLength(3)
 
-  running.pipeline = { id: 10, status: 'success', sha: 'f1' }
-  await host.clock.advance(30_000)
-  expect(await statusLine($)).toContain('develop ✓')
+    host.forgeCalls.length = 0
+    await host.clock.advance(30_000)
+    expect(host.forgeCalls).toEqual([forge.detailsArgv(mergeRequest({ number: 1, project: projects[name] })).join(' ')])
 
-  host.glabCalls.length = 0
-  await host.clock.advance(10 * minute)
-  expect(host.glabCalls.every(call => call.startsWith('glab mr list'))).toBe(true)
-  expect(host.glabCalls).toHaveLength(5)
-})
+    running.pipeline = { id: 10, status: 'success', sha: 'f1' }
+    await host.clock.advance(30_000)
+    expect(await statusLine($)).toContain('develop ✓')
 
-test('after a push to a passed MR, waits for the new pipeline instead of keeping the old pass', async ($, on) => {
-  const mr = openMergeRequest({ pipeline: { id: 10, status: 'success', sha: 'f1' } })
-  const host = installFakeHost(on, repoWith(mr))
-  await startSession($, host)
-  expect(await statusLine($)).toContain('✓')
+    host.forgeCalls.length = 0
+    await host.clock.advance(10 * minute)
+    expect(host.forgeCalls.every(call => call === forge.listArgv('feature/x').join(' '))).toBe(true)
+    expect(host.forgeCalls).toHaveLength(5)
+  })
 
-  host.repo.upstreamShas['feature/x'] = 'f2'
-  await host.clock.advance(15_000)
-  expect(await statusLine($)).toContain('⟳')
+  test(`${name}: after a push to a passed MR, waits for the new pipeline instead of keeping the old pass`, async ($, on) => {
+    const mr = openMergeRequest({ pipeline: { id: 10, status: 'success', sha: 'f1' } })
+    const host = installFakeHost(on, repoWith(name, mr))
+    await startSession($, host)
+    expect(await statusLine($)).toContain('✓')
 
-  mr.sha = 'f2'
-  mr.pipeline = { id: 11, status: 'running', sha: 'f2' }
-  await host.clock.advance(30_000)
-  expect(await statusLine($)).toContain('⟳')
+    host.repo.upstreamShas['feature/x'] = 'f2'
+    await host.clock.advance(15_000)
+    expect(await statusLine($)).toContain('⟳')
 
-  mr.pipeline = { id: 11, status: 'success', sha: 'f2' }
-  await host.clock.advance(30_000)
-  expect(await statusLine($)).toContain('✓')
-})
+    mr.sha = 'f2'
+    await host.clock.advance(30_000)
+    expect(await statusLine($)).toContain('⟳')
 
-test('drops an MR merged while on another branch once you switch back', async ($, on) => {
-  const toDevelop = openMergeRequest({ iid: 1 })
-  const toSprint = openMergeRequest({ iid: 2, targetBranch: 'sprint-33-2' })
-  const host = installFakeHost(on, repoWith(toDevelop, toSprint))
-  await startSession($, host)
-  expect(await statusLine($)).toContain('!1')
+    mr.pipeline = { id: 11, status: 'running', sha: 'f2' }
+    await host.clock.advance(30_000)
+    expect(await statusLine($)).toContain('⟳')
 
-  host.repo.branch = 'develop'
-  await host.clock.advance(15_000)
-  expect(await statusLine($)).toContain('none')
+    mr.pipeline = { id: 11, status: 'success', sha: 'f2' }
+    await host.clock.advance(30_000)
+    expect(await statusLine($)).toContain('✓')
+  })
 
-  toDevelop.state = 'merged'
-  host.repo.branch = 'feature/x'
-  await host.clock.advance(15_000)
-  expect(await statusLine($)).not.toContain('!1')
-  expect(await statusLine($)).toContain('!2')
-})
+  test(`${name}: drops an MR merged while on another branch once you switch back`, async ($, on) => {
+    const toDevelop = openMergeRequest({ number: 1 })
+    const toSprint = openMergeRequest({ number: 2, targetBranch: 'sprint-33-2' })
+    const host = installFakeHost(on, repoWith(name, toDevelop, toSprint))
+    await startSession($, host)
+    expect(await statusLine($)).toContain(label(1))
 
-test('rechecks open MRs every 2 minutes and drops ones merged elsewhere', async ($, on) => {
-  const mr = openMergeRequest({ pipeline: { id: 10, status: 'success', sha: 'f1' } })
-  const host = installFakeHost(on, repoWith(mr))
-  await startSession($, host)
+    host.repo.branch = 'develop'
+    await host.clock.advance(15_000)
+    expect(await statusLine($)).toContain('none')
 
-  host.glabCalls.length = 0
-  await host.clock.advance(2 * minute)
-  expect(host.glabCalls).toEqual(['glab mr list --source-branch feature/x --all --output json --per-page 20'])
+    toDevelop.state = 'merged'
+    host.repo.branch = 'feature/x'
+    await host.clock.advance(15_000)
+    expect(await statusLine($)).not.toContain(label(1))
+    expect(await statusLine($)).toContain(label(2))
+  })
 
-  mr.state = 'merged'
-  await host.clock.advance(2 * minute)
-  expect(await statusLine($)).toContain('none')
-})
+  test(`${name}: rechecks open MRs every 2 minutes and drops ones merged elsewhere`, async ($, on) => {
+    const mr = openMergeRequest({ pipeline: { id: 10, status: 'success', sha: 'f1' } })
+    const host = installFakeHost(on, repoWith(name, mr))
+    await startSession($, host)
 
-test('asks the session to investigate once when a running pipeline fails', async ($, on) => {
-  const mr = openMergeRequest({ pipeline: { id: 500, status: 'running', sha: 'f1' } })
-  const host = installFakeHost(on, repoWith(mr))
-  await startSession($, host)
-  expect(host.prompts).toEqual([])
+    host.forgeCalls.length = 0
+    await host.clock.advance(2 * minute)
+    expect(host.forgeCalls).toEqual([forge.listArgv('feature/x').join(' ')])
 
-  mr.pipeline = { id: 500, status: 'failed', sha: 'f1' }
-  await host.clock.advance(30_000)
-  expect(host.prompts).toHaveLength(1)
-  expect(host.prompts[0]).toContain(`${pipelineUrl(500)} of MR !1 (feature/x → develop) just failed`)
+    mr.state = 'merged'
+    await host.clock.advance(2 * minute)
+    expect(await statusLine($)).toContain('none')
+  })
 
-  await host.clock.advance(10 * minute)
-  expect(host.prompts).toHaveLength(1)
-})
+  test(`${name}: asks the session to investigate once when a running pipeline fails`, async ($, on) => {
+    const mr = openMergeRequest({ pipeline: { id: 500, status: 'running', sha: 'f1' } })
+    const host = installFakeHost(on, repoWith(name, mr))
+    await startSession($, host)
+    expect(host.prompts).toEqual([])
+
+    mr.pipeline = { id: 500, status: 'failed', sha: 'f1' }
+    await host.clock.advance(30_000)
+    expect(host.prompts).toHaveLength(1)
+    expect(host.prompts[0]).toContain(`${label(1)} (feature/x → develop)`)
+    expect(host.prompts[0]).toContain(pipelineUrl(name, mr))
+
+    await host.clock.advance(10 * minute)
+    expect(host.prompts).toHaveLength(1)
+  })
+}

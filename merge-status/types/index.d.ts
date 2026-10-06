@@ -1,29 +1,20 @@
-export type MergeRequestState = 'opened' | 'merged' | 'closed' | 'locked'
+export type ForgeName = 'gitlab' | 'github'
 
-export type PipelineStatus =
-  | 'created'
-  | 'waiting_for_resource'
-  | 'preparing'
-  | 'pending'
-  | 'running'
-  | 'scheduled'
-  | 'manual'
-  | 'success'
-  | 'failed'
-  | 'canceled'
-  | 'skipped'
+export type MergeRequestState = 'open' | 'merged' | 'closed'
+
+export type PipelineStatus = 'running' | 'passed' | 'failed' | 'canceled' | 'idle'
 
 export interface ResolvedPipeline {
   status: PipelineStatus
-  id: number
+  id: string
   url: string
 }
 
 export type Pipeline = ResolvedPipeline | { status: 'awaiting' }
 
 export interface MergeRequest {
-  iid: number
-  projectId: number
+  number: number
+  project: string
   state: MergeRequestState
   isDraft: boolean
   targetBranch: string
@@ -35,6 +26,7 @@ export interface MergeRequest {
 export interface BranchStatus {
   repo: string | null
   branch: string | null
+  forge: ForgeName | null
   mergeRequests: MergeRequest[] | null
   error: string | null
 }

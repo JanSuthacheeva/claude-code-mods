@@ -4,17 +4,10 @@ import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
 import type { BranchStatus, MergeRequest } from '../types'
 import { detectPlatform, isWindows, openUrlArgv } from './browser'
 import type { Platform } from './browser'
-import { isGitlabRemote, isTriggeringCommand, remoteBranchName, toFingerprint } from './git'
+import { describeProcessError, detectForge, forgeNamed } from './forge'
+import type { Forge } from './forge'
+import { isTriggeringCommand, remoteBranchName, toFingerprint } from './git'
 import type { Fingerprint, Location } from './git'
-import {
-  describeGlabError,
-  describeGlabFailure,
-  detailsArgv,
-  listArgv,
-  parseDetails,
-  parseMergeRequests,
-} from './gitlab'
-import { investigationPrompt } from './investigation'
 import { openByPriority, pickMergeRequest } from './merge-requests'
 import { needsPolling, newlyFailed, resolvePipeline } from './pipelines'
 import {
@@ -22,7 +15,7 @@ import {
   initialTracking,
   nextWatchAction,
   pushGracePeriodMs,
-  sameIids,
+  sameNumbers,
   watchIntervalMs,
 } from './schedule'
 import { statusSegments } from './status-line'
@@ -32,7 +25,7 @@ type Listing = { mergeRequests: MergeRequest[] } | { error: string }
 const commandTimeoutMs = 20_000
 const visibilityStoreKey = 'isVisible'
 
-const emptyStatus: BranchStatus = { repo: null, branch: null, mergeRequests: null, error: null }
+const emptyStatus: BranchStatus = { repo: null, branch: null, forge: null, mergeRequests: null, error: null }
 
 const branchStatus = atom({ plugin: 'merge-status', key: 'branchStatus' } as const, emptyStatus)
 const isVisible = atom({ plugin: 'merge-status', key: 'isVisible' } as const, true)
@@ -80,11 +73,11 @@ async function readLocation($: EngineInterface): Promise<Location | null> {
   const localBranch = await output($, ['git', 'branch', '--show-current'])
   if (repo === null || localBranch === null) return null
 
-  const remoteUrl = await output($, ['git', 'remote', 'get-url', 'origin'])
-  if (!isGitlabRemote(remoteUrl)) return null
+  const forge = detectForge(await output($, ['git', 'remote', 'get-url', 'origin']))
+  if (forge === null) return null
 
   const upstreamRef = await output($, ['git', 'rev-parse', '--abbrev-ref', '@{upstream}'])
-  return { repo, branch: remoteBranchName(upstreamRef, localBranch) }
+  return { repo, branch: remoteBranchName(upstreamRef, localBranch), forge: forge.name }
 }
 
 async function readFingerprint($: EngineInterface): Promise<Fingerprint> {
@@ -93,48 +86,50 @@ async function readFingerprint($: EngineInterface): Promise<Fingerprint> {
   return toFingerprint(head, upstreamSha)
 }
 
-// GitLab
+// Forge
 
-async function listOpen($: EngineInterface, sourceBranch: string): Promise<Listing> {
+async function listOpen($: EngineInterface, forge: Forge, sourceBranch: string): Promise<Listing> {
   try {
-    const { exitCode, stdout, stderr } = await run($, listArgv(sourceBranch))
-    if (exitCode !== 0) return { error: describeGlabFailure(`${stderr}\n${stdout}`) }
-    return { mergeRequests: openByPriority(parseMergeRequests(stdout)) }
+    const { exitCode, stdout, stderr } = await run($, forge.listArgv(sourceBranch))
+    if (exitCode !== 0) return { error: forge.describeFailure(`${stderr}\n${stdout}`) }
+    return { mergeRequests: openByPriority(forge.parseMergeRequests(stdout)) }
   } catch (error) {
-    return { error: describeGlabError(error) }
+    return { error: describeProcessError(forge, error) }
   }
 }
 
 async function withPipeline(
   $: EngineInterface,
+  forge: Forge,
   mr: MergeRequest,
   previous: MergeRequest | undefined,
 ): Promise<MergeRequest> {
-  const json = await output($, detailsArgv(mr))
+  const json = await output($, forge.detailsArgv(mr))
   if (json === null)
     return { ...mr, pipeline: previous?.pipeline ?? null, hasConflicts: previous?.hasConflicts ?? false }
 
-  const details = parseDetails(json)
+  const details = forge.parseDetails(json)
   const context = {
     pushedSha: tracking.fingerprint?.upstreamSha ?? null,
     isWithinPushGrace: (await $.clock.now()) < tracking.pushGraceUntil,
     hadPipeline: (previous?.pipeline ?? null) !== null,
   }
-  return { ...mr, pipeline: resolvePipeline(details, context), hasConflicts: details.has_conflicts }
+  return { ...mr, pipeline: resolvePipeline(details, context), hasConflicts: details.hasConflicts }
 }
 
 async function reportFailures(
   $: EngineInterface,
+  forge: Forge,
   sourceBranch: string,
   before: readonly MergeRequest[],
   after: readonly MergeRequest[],
 ): Promise<void> {
   for (const mr of newlyFailed(before, after)) {
-    const storeKey = `investigated:${String(mr.projectId)}:${String(mr.pipeline.id)}`
+    const storeKey = `investigated:${forge.name}:${mr.project}:${mr.pipeline.id}`
     if ((await $.store.get(storeKey)) === true) continue
 
     await $.store.set(storeKey, true)
-    void $.prompt.submit({ text: investigationPrompt(mr, sourceBranch) })
+    void $.prompt.submit({ text: forge.investigationPrompt(mr, sourceBranch) })
   }
 }
 
@@ -163,23 +158,25 @@ async function load($: EngineInterface): Promise<void> {
     return
   }
 
+  const forge = forgeNamed(location.forge)
   const current = await read($, branchStatus)
-  const isSameBranch = current.repo === location.repo && current.branch === location.branch
+  const isSameBranch =
+    current.repo === location.repo && current.branch === location.branch && current.forge === location.forge
   if (!isSameBranch) await setBranchStatus($, { ...location, mergeRequests: null, error: null })
 
-  const listing = await listOpen($, location.branch)
+  const listing = await listOpen($, forge, location.branch)
   if ('error' in listing) {
     await setBranchStatus($, { ...location, mergeRequests: null, error: listing.error })
     return
   }
 
   const previous = isSameBranch ? (current.mergeRequests ?? []) : []
-  const previousByIid = new Map(previous.map(mr => [mr.iid, mr]))
+  const previousByNumber = new Map(previous.map(mr => [mr.number, mr]))
   const mergeRequests = await Promise.all(
-    listing.mergeRequests.map(mr => withPipeline($, mr, previousByIid.get(mr.iid))),
+    listing.mergeRequests.map(mr => withPipeline($, forge, mr, previousByNumber.get(mr.number))),
   )
   await setBranchStatus($, { ...location, mergeRequests, error: null })
-  await reportFailures($, location.branch, previous, mergeRequests)
+  await reportFailures($, forge, location.branch, previous, mergeRequests)
 }
 
 async function refresh($: EngineInterface): Promise<void> {
@@ -207,22 +204,25 @@ async function refresh($: EngineInterface): Promise<void> {
 async function recheck($: EngineInterface, status: BranchStatus): Promise<void> {
   const generation = tracking.generation
   tracking.listedAt = await $.clock.now()
-  if (status.branch === null) return
+  if (status.branch === null || status.forge === null) return
 
-  const listing = await listOpen($, status.branch)
+  const listing = await listOpen($, forgeNamed(status.forge), status.branch)
   if ('error' in listing || isStale(generation)) return
-  if (!sameIids(listing.mergeRequests, status.mergeRequests ?? [])) await refresh($)
+  if (!sameNumbers(listing.mergeRequests, status.mergeRequests ?? [])) await refresh($)
 }
 
 async function pollPipelines($: EngineInterface, status: BranchStatus): Promise<void> {
   const generation = tracking.generation
   tracking.pipelinesPolledAt = await $.clock.now()
+  if (status.branch === null || status.forge === null) return
+
+  const forge = forgeNamed(status.forge)
   const previous = status.mergeRequests ?? []
-  const polled = await Promise.all(previous.map(async mr => (needsPolling(mr) ? withPipeline($, mr, mr) : mr)))
-  if (isStale(generation) || status.branch === null) return
+  const polled = await Promise.all(previous.map(async mr => (needsPolling(mr) ? withPipeline($, forge, mr, mr) : mr)))
+  if (isStale(generation)) return
 
   await setBranchStatus($, { ...status, mergeRequests: polled })
-  await reportFailures($, status.branch, previous, polled)
+  await reportFailures($, forge, status.branch, previous, polled)
 }
 
 async function watch($: EngineInterface): Promise<void> {
@@ -249,11 +249,11 @@ export const register: Register = on => {
     const result = await next(e)
     await $.command.register({
       name: 'mrs',
-      description: 'Toggle the GitLab MRs of the current branch under the prompt',
+      description: 'Toggle the merge requests (GitLab) or pull requests (GitHub) of the current branch under the prompt',
     })
     await $.command.register({
       name: 'mr',
-      description: 'Open an MR of the current branch in the browser: /mr (first), /mr 2 (second), /mr 3609 (by number)',
+      description: 'Open an MR or PR of the current branch in the browser: /mr (first), /mr 2 (second), /mr 3609 (by number)',
     })
 
     const visible = (await $.store.get(visibilityStoreKey)) !== false
@@ -270,17 +270,21 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'mr' }, async ($, e) => {
-    const mergeRequests = (await read($, branchStatus)).mergeRequests ?? []
-    if (mergeRequests.length === 0) return { text: 'No open MR for this branch.' }
+    const status = await read($, branchStatus)
+    const forge = status.forge === null ? null : forgeNamed(status.forge)
+    const noun = forge?.noun ?? 'MR'
+    const mergeRequests = status.mergeRequests ?? []
+    if (forge === null || mergeRequests.length === 0) return { text: `No open ${noun} for this branch.` }
 
+    const labelOf = (mr: MergeRequest): string => `${forge.sigil}${String(mr.number)}`
     const mr = pickMergeRequest(mergeRequests, e.args)
     if (mr === undefined) {
-      const available = mergeRequests.map(({ iid }) => `!${String(iid)}`).join(', ')
-      return { text: `No MR "${e.args.trim()}" here. Open: ${available}` }
+      const available = mergeRequests.map(labelOf).join(', ')
+      return { text: `No ${noun} "${e.args.trim()}" here. Open: ${available}` }
     }
 
     const failure = await openInBrowser($, mr.url)
-    const label = `!${String(mr.iid)}`
+    const label = labelOf(mr)
     return { text: failure === null ? `Opened ${label}.` : `Could not open ${label}: ${failure}` }
   })
 

@@ -1,6 +1,9 @@
+import type { ForgeName } from '../types'
+
 export interface Location {
   repo: string
   branch: string
+  forge: ForgeName
 }
 
 export interface Fingerprint {
@@ -8,14 +11,17 @@ export interface Fingerprint {
   upstreamSha: string | null
 }
 
-const triggeringCommand = /\bgit\b(?:\s+-C\s+\S+)?\s+(?:checkout|switch|push|pull)\b|\bglab\s+mr\s+(?:create|new)\b/
+const urlRemote = /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]+@)?([^:/]+)/i
+const scpRemote = /^(?:[^@/]+@)?([^:/\\]{2,}):(?!\/\/)/
+const triggeringCommand = /\bgit\b(?:\s+-C\s+\S+)?\s+(?:checkout|switch|push|pull)\b|\b(?:glab\s+mr|gh\s+pr)\s+(?:create|new)\b/
 
 export function isTriggeringCommand(command: string): boolean {
   return triggeringCommand.test(command)
 }
 
-export function isGitlabRemote(remoteUrl: string | null): remoteUrl is string {
-  return remoteUrl !== null && !remoteUrl.includes('github.com')
+export function remoteHost(remoteUrl: string): string | null {
+  const host = urlRemote.exec(remoteUrl)?.[1] ?? scpRemote.exec(remoteUrl)?.[1]
+  return host?.toLowerCase() ?? null
 }
 
 export function remoteBranchName(upstreamRef: string | null, localBranch: string): string {

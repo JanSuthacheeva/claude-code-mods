@@ -2,17 +2,19 @@ import { mock } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import type { MergeRequestState, PipelineStatus } from '../types'
+import type { ForgeName, MergeRequestState } from '../types'
 import type { Platform } from './browser'
+
+export type FakePipelineStatus = 'running' | 'success' | 'failed' | 'canceled'
 
 export interface FakePipeline {
   id: number
-  status: PipelineStatus
+  status: FakePipelineStatus
   sha: string
 }
 
 export interface FakeMergeRequest {
-  iid: number
+  number: number
   state: MergeRequestState
   targetBranch: string
   sha: string
@@ -26,42 +28,99 @@ export interface FakeRepo {
   remoteUrl: string
   upstreamShas: Record<string, string>
   mergeRequests: Record<string, FakeMergeRequest[]>
-  glabFailure?: string
+  forgeFailure?: string
   platform?: Platform
 }
 
 export interface FakeHost {
   repo: FakeRepo
   clock: MockClock
-  glabCalls: string[]
+  forgeCalls: string[]
   openedWith: string[][]
   prompts: string[]
 }
 
 export const projectId = 9
 
-export const mergeRequestUrl = (iid: number): string => `https://git.example/mr/${String(iid)}`
-export const pipelineUrl = (id: number): string => `https://git.example/pipelines/${String(id)}`
+export const projects: Record<ForgeName, string> = {
+  gitlab: String(projectId),
+  github: 'github.com/team/repo',
+}
+
+export const remoteUrls: Record<ForgeName, string> = {
+  gitlab: 'git@gitlab.example.com:team/repo.git',
+  github: 'git@github.com:team/repo.git',
+}
+
+export function mergeRequestUrl(forge: ForgeName, number: number): string {
+  return forge === 'gitlab'
+    ? `https://gitlab.example.com/team/repo/-/merge_requests/${String(number)}`
+    : `https://github.com/team/repo/pull/${String(number)}`
+}
+
+export function pipelineUrl(forge: ForgeName, mr: Pick<FakeMergeRequest, 'number' | 'pipeline'>): string {
+  return forge === 'gitlab'
+    ? `https://gitlab.example.com/team/repo/-/pipelines/${String(mr.pipeline?.id)}`
+    : `${mergeRequestUrl(forge, mr.number)}/checks`
+}
 
 const engineHint = 'engine hint'
 
 const kernelNames: Record<Platform, string | null> = { macos: 'Darwin', linux: 'Linux', windows: null }
 const openers = new Set(['open', 'xdg-open', 'rundll32'])
+const forgeClis = new Set(['glab', 'gh'])
 
-function toListItem(mr: FakeMergeRequest): object {
+const gitlabStates: Record<MergeRequestState, string> = { open: 'opened', merged: 'merged', closed: 'closed' }
+const githubStates: Record<MergeRequestState, string> = { open: 'OPEN', merged: 'MERGED', closed: 'CLOSED' }
+
+const checkRuns: Record<FakePipelineStatus, object> = {
+  running: { status: 'IN_PROGRESS', conclusion: null },
+  success: { status: 'COMPLETED', conclusion: 'SUCCESS' },
+  failed: { status: 'COMPLETED', conclusion: 'FAILURE' },
+  canceled: { status: 'COMPLETED', conclusion: 'CANCELLED' },
+}
+
+function gitlabListItem(mr: FakeMergeRequest): object {
   return {
-    iid: mr.iid,
+    iid: mr.number,
     project_id: projectId,
-    state: mr.state,
+    state: gitlabStates[mr.state],
     draft: mr.isDraft ?? false,
     target_branch: mr.targetBranch,
-    web_url: mergeRequestUrl(mr.iid),
+    web_url: mergeRequestUrl('gitlab', mr.number),
   }
 }
 
-function toDetails(mr: FakeMergeRequest): object {
-  const pipeline = mr.pipeline && { ...mr.pipeline, web_url: pipelineUrl(mr.pipeline.id) }
+function gitlabDetails(mr: FakeMergeRequest): object {
+  const pipeline = mr.pipeline && { ...mr.pipeline, web_url: pipelineUrl('gitlab', mr) }
   return { sha: mr.sha, has_conflicts: mr.hasConflicts ?? false, head_pipeline: pipeline }
+}
+
+function githubListItem(mr: FakeMergeRequest): object {
+  return {
+    number: mr.number,
+    state: githubStates[mr.state],
+    isDraft: mr.isDraft ?? false,
+    baseRefName: mr.targetBranch,
+    url: mergeRequestUrl('github', mr.number),
+  }
+}
+
+function githubDetails(mr: FakeMergeRequest): object {
+  const isHeadPipeline = mr.pipeline !== null && mr.pipeline.sha === mr.sha
+  const checks = isHeadPipeline && mr.pipeline ? [{ __typename: 'CheckRun', ...checkRuns[mr.pipeline.status] }] : []
+  return {
+    headRefOid: mr.sha,
+    mergeable: mr.hasConflicts === true ? 'CONFLICTING' : 'MERGEABLE',
+    statusCheckRollup: checks,
+    url: mergeRequestUrl('github', mr.number),
+  }
+}
+
+function findMergeRequest(repo: FakeRepo, number: string | undefined): FakeMergeRequest | undefined {
+  return Object.values(repo.mergeRequests)
+    .flat()
+    .find(mr => String(mr.number) === number)
 }
 
 function respond(host: FakeHost, argv: readonly string[]): string | null {
@@ -74,7 +133,7 @@ function respond(host: FakeHost, argv: readonly string[]): string | null {
     host.openedWith.push([...argv])
     return ''
   }
-  if (argv[0] === 'glab') host.glabCalls.push(command)
+  if (forgeClis.has(argv[0] ?? '')) host.forgeCalls.push(command)
 
   switch (command) {
     case 'git rev-parse --show-toplevel':
@@ -91,21 +150,24 @@ function respond(host: FakeHost, argv: readonly string[]): string | null {
       return `/repo\n${repo.branch}`
   }
 
-  const listed = /^glab mr list --source-branch (\S+) /.exec(command)
-  if (listed) return JSON.stringify((repo.mergeRequests[listed[1] ?? ''] ?? []).map(toListItem))
+  const listedOnGitlab = /^glab mr list --source-branch (\S+) /.exec(command)
+  if (listedOnGitlab) return JSON.stringify((repo.mergeRequests[listedOnGitlab[1] ?? ''] ?? []).map(gitlabListItem))
 
-  const detailed = /^glab api projects\/\d+\/merge_requests\/(\d+)$/.exec(command)
-  const mr = Object.values(repo.mergeRequests)
-    .flat()
-    .find(({ iid }) => String(iid) === detailed?.[1])
-  return mr ? JSON.stringify(toDetails(mr)) : null
+  const listedOnGithub = /^gh pr list --head (\S+) /.exec(command)
+  if (listedOnGithub) return JSON.stringify((repo.mergeRequests[listedOnGithub[1] ?? ''] ?? []).map(githubListItem))
+
+  const gitlabMr = findMergeRequest(repo, /^glab api projects\/\d+\/merge_requests\/(\d+)$/.exec(command)?.[1])
+  if (gitlabMr) return JSON.stringify(gitlabDetails(gitlabMr))
+
+  const githubMr = findMergeRequest(repo, /^gh pr view (\d+) --repo github\.com\/team\/repo /.exec(command)?.[1])
+  return githubMr ? JSON.stringify(githubDetails(githubMr)) : null
 }
 
 export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
   const host: FakeHost = {
     repo,
     clock: mock.clock(on, { now: Date.parse('2026-10-06T09:00:00Z') }),
-    glabCalls: [],
+    forgeCalls: [],
     openedWith: [],
     prompts: [],
   }
@@ -113,7 +175,7 @@ export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
   mock.env(on, repo.platform === 'windows' ? { OS: 'Windows_NT' } : {})
 
   on('process.run', (_$, e) => {
-    const failure = e.argv[0] === 'glab' ? repo.glabFailure : undefined
+    const failure = forgeClis.has(e.argv[0] ?? '') ? repo.forgeFailure : undefined
     const stdout = failure === undefined ? respond(host, e.argv) : null
     return {
       value: {

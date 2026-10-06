@@ -1,12 +1,12 @@
 import type { MergeRequest } from '../types'
 
-export function mergeRequest(overrides: Partial<MergeRequest> & Pick<MergeRequest, 'iid'>): MergeRequest {
+export function mergeRequest(overrides: Partial<MergeRequest> & Pick<MergeRequest, 'number'>): MergeRequest {
   return {
-    projectId: 1,
-    state: 'opened',
+    project: '1',
+    state: 'open',
     isDraft: false,
     targetBranch: 'develop',
-    url: `https://git.example/mr/${String(overrides.iid)}`,
+    url: `https://git.example/mr/${String(overrides.number)}`,
     pipeline: null,
     hasConflicts: false,
     ...overrides,

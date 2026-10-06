@@ -7,8 +7,8 @@ import type { Tracking } from './schedule'
 
 const fingerprint = toFingerprint('/repo\nfeature/x', 'f1')
 const tracking: Tracking = { ...initialTracking(), fingerprint }
-const running = mergeRequest({ iid: 1, pipeline: { status: 'running', id: 1, url: '' } })
-const passed = mergeRequest({ iid: 1, pipeline: { status: 'success', id: 1, url: '' } })
+const running = mergeRequest({ number: 1, pipeline: { status: 'running', id: '1', url: '' } })
+const passed = mergeRequest({ number: 1, pipeline: { status: 'passed', id: '1', url: '' } })
 
 test('refreshes whenever the branch or its upstream commit changes', () => {
   expect(nextWatchAction(initialTracking(), fingerprint, [], 0)).toBe('refresh')
