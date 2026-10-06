@@ -8,6 +8,18 @@ A Claude Code mod that shows the open GitLab merge requests of your current bran
 
 Only open MRs are shown, drafts included. Merged and closed MRs are left out, and a branch without an open MR shows `󰮠  none`.
 
+## Features
+
+- **Pipeline and conflicts at a glance:** one sign per MR for the pipeline (passed, running, failed, none) and a warning for merge conflicts.
+- **Follows your Claude Code theme:** all colors come from the theme, and switching it with `/theme` recolors the row right away.
+- **Stays current on its own:** refreshes after a checkout, switch, push, pull or new MR, whether Claude runs it or you do, and drops MRs merged or closed elsewhere.
+- **No stale results after a push:** waits for the new pipeline instead of showing the previous one as passed.
+- **Investigates failed pipelines:** when a pipeline you saw running fails, Claude looks into the failed jobs and reports the cause, without changing code.
+- **Clickable MRs:** each MR number links to its page, and `/mr` opens one in your browser.
+- **Light on resources:** runs `glab` and local `git` only, and costs no tokens apart from failure investigations. Pipelines are polled only while running or failed; otherwise one `glab` call every 2 minutes re-lists the open MRs.
+- **Clear setup hints:** if glab is missing or not logged in, the row says what to run.
+- **Cross-platform:** macOS, Linux and Windows.
+
 ## Requirements
 
 - **Claude Code with function-hook plugins (mods)**, tested on 2.1.291. The mod API is in early access and may change between releases.
@@ -40,7 +52,6 @@ If glab is missing or not logged in, the row says so and tells you how to fix it
 | `⚠`              | Merge conflict                         |
 
 MRs are ordered by target branch: feature and bugfix branches first, then `develop`, `sprint-*` and `main`.
-Colors follow your Claude Code theme.
 
 ## Commands
 
