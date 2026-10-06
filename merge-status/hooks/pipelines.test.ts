@@ -2,14 +2,14 @@ import { expect, test } from 'claude-code/testing'
 
 import type { PipelineStatus } from '../types'
 import { mergeRequest } from './fixtures'
-import type { MergeRequestDetails } from './gitlab'
+import type { MergeRequestDetails } from './forge'
 import { newlyFailed, pollIntervalMs, resolvePipeline } from './pipelines'
 
 function details(sha: string, pipeline: { status: PipelineStatus; sha: string } | null): MergeRequestDetails {
   return {
     sha,
-    has_conflicts: false,
-    head_pipeline: pipeline && { ...pipeline, id: 1, web_url: 'https://git.example/p/1' },
+    hasConflicts: false,
+    headPipeline: pipeline && { ...pipeline, id: '1', url: 'https://git.example/p/1' },
   }
 }
 
@@ -19,26 +19,26 @@ const justPushed = { pushedSha: 'new', isWithinPushGrace: true, hadPipeline: tru
 test('uses the head pipeline when it belongs to the current commit', () => {
   expect(resolvePipeline(details('a', { status: 'running', sha: 'a' }), settled)).toEqual({
     status: 'running',
-    id: 1,
+    id: '1',
     url: 'https://git.example/p/1',
   })
-  expect(resolvePipeline(details('b', { status: 'success', sha: 'a' }), settled)).toBeNull()
+  expect(resolvePipeline(details('b', { status: 'passed', sha: 'a' }), settled)).toBeNull()
 })
 
 test('right after a push, an older pipeline means a new one is on its way', () => {
   const awaiting = { status: 'awaiting' }
 
-  expect(resolvePipeline(details('old', { status: 'success', sha: 'old' }), justPushed)).toEqual(awaiting)
-  expect(resolvePipeline(details('new', { status: 'success', sha: 'old' }), justPushed)).toEqual(awaiting)
+  expect(resolvePipeline(details('old', { status: 'passed', sha: 'old' }), justPushed)).toEqual(awaiting)
+  expect(resolvePipeline(details('new', { status: 'passed', sha: 'old' }), justPushed)).toEqual(awaiting)
   expect(resolvePipeline(details('new', { status: 'running', sha: 'new' }), justPushed)?.status).toBe('running')
   expect(resolvePipeline(details('new', null), { ...justPushed, hadPipeline: false })).toBeNull()
 })
 
 test('polls running pipelines every 30s and failed ones every 2 minutes, passed ones never', () => {
-  const passed = mergeRequest({ iid: 1, pipeline: { status: 'success', id: 1, url: '' } })
-  const failed = mergeRequest({ iid: 2, pipeline: { status: 'failed', id: 2, url: '' } })
-  const awaiting = mergeRequest({ iid: 3, pipeline: { status: 'awaiting' } })
-  const mergedWhileRunning = mergeRequest({ iid: 4, state: 'merged', pipeline: { status: 'running', id: 4, url: '' } })
+  const passed = mergeRequest({ number: 1, pipeline: { status: 'passed', id: '1', url: '' } })
+  const failed = mergeRequest({ number: 2, pipeline: { status: 'failed', id: '2', url: '' } })
+  const awaiting = mergeRequest({ number: 3, pipeline: { status: 'awaiting' } })
+  const mergedWhileRunning = mergeRequest({ number: 4, state: 'merged', pipeline: { status: 'running', id: '4', url: '' } })
 
   expect(pollIntervalMs([passed])).toBeNull()
   expect(pollIntervalMs([failed])).toBe(120_000)
@@ -47,9 +47,9 @@ test('polls running pipelines every 30s and failed ones every 2 minutes, passed 
 })
 
 test('reports a failure only for pipelines seen running before', () => {
-  const running = mergeRequest({ iid: 8, pipeline: { status: 'running', id: 77, url: '' } })
-  const awaiting = mergeRequest({ iid: 8, pipeline: { status: 'awaiting' } })
-  const failed = mergeRequest({ iid: 8, pipeline: { status: 'failed', id: 77, url: '' } })
+  const running = mergeRequest({ number: 8, pipeline: { status: 'running', id: '77', url: '' } })
+  const awaiting = mergeRequest({ number: 8, pipeline: { status: 'awaiting' } })
+  const failed = mergeRequest({ number: 8, pipeline: { status: 'failed', id: '77', url: '' } })
 
   expect(newlyFailed([running], [failed])).toEqual([failed])
   expect(newlyFailed([awaiting], [failed])).toEqual([failed])

@@ -49,6 +49,6 @@ export function hasMovedUpstream(previous: Fingerprint | null, next: Fingerprint
   return previousSha !== null && next.upstreamSha !== previousSha
 }
 
-export function sameIids(a: readonly MergeRequest[], b: readonly MergeRequest[]): boolean {
-  return a.map(mr => mr.iid).join(',') === b.map(mr => mr.iid).join(',')
+export function sameNumbers(a: readonly MergeRequest[], b: readonly MergeRequest[]): boolean {
+  return a.map(mr => mr.number).join(',') === b.map(mr => mr.number).join(',')
 }

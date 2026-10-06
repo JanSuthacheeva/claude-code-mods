@@ -9,15 +9,15 @@ function targetPriority(targetBranch: string): number {
 
 export function openByPriority(mergeRequests: readonly MergeRequest[]): MergeRequest[] {
   return mergeRequests
-    .filter(mr => mr.state === 'opened')
-    .sort((a, b) => targetPriority(a.targetBranch) - targetPriority(b.targetBranch) || b.iid - a.iid)
+    .filter(mr => mr.state === 'open')
+    .sort((a, b) => targetPriority(a.targetBranch) - targetPriority(b.targetBranch) || b.number - a.number)
 }
 
 export function pickMergeRequest(mergeRequests: readonly MergeRequest[], query: string): MergeRequest | undefined {
-  const wanted = query.trim().replace(/^!/, '')
+  const wanted = query.trim().replace(/^[!#]/, '')
   if (wanted === '') return mergeRequests[0]
 
   const number = Number(wanted)
   if (!Number.isInteger(number) || number < 1) return undefined
-  return mergeRequests.find(mr => mr.iid === number) ?? mergeRequests[number - 1]
+  return mergeRequests.find(mr => mr.number === number) ?? mergeRequests[number - 1]
 }
