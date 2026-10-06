@@ -2,15 +2,40 @@
 
 A Claude Code mod that shows the open merge requests (GitLab) or pull requests (GitHub) of your current branch in a row under the prompt:
 
-```
-󰮠  !3609 open → develop ✓ ⚠ · !3610 draft → sprint-33-2 ○
-󰊤  #128 open → main ⟳
-```
+![Two open GitHub pull requests with running checks, one of them a draft with a merge conflict](docs/running.png)
 
 Only open MRs and PRs are shown, drafts included. Merged and closed ones are left out, and a branch without an open one shows `none`.
 
 The forge comes from the `origin` remote: a host of `github.com` or one starting with `github.` (GitHub Enterprise, for example `github.acme.com`) is GitHub and uses `gh`; any other host is GitLab and uses `glab`.
 In the rest of this README, "MR" covers GitHub pull requests too.
+
+## Screenshots
+
+Taken in Claude Code on this repository's demo pull requests, and on a GitLab merge request.
+
+**Checks passed** on both pull requests:
+
+![Both pull requests with passed checks](docs/passed.png)
+
+**Checks failed**, with a merge conflict on the draft:
+
+![Both pull requests with failed checks and a conflict sign on the draft](docs/failed.png)
+
+**Claude investigates the failure** on its own, without changing code:
+
+![Claude reads the failed check logs and reports the root cause](docs/investigation.png)
+
+**GitLab** merge requests through `glab`:
+
+![A GitLab merge request with a passed pipeline](docs/gitlab.png)
+
+**No open pull request** on the branch:
+
+![The row says none](docs/none.png)
+
+**A setup hint** when the CLI is not logged in:
+
+![The row says gh is not logged in and how to fix it](docs/nologin.png)
 
 ## Features
 
