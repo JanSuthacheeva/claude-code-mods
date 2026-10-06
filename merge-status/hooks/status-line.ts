@@ -1,0 +1,47 @@
+import type { BranchStatus, MergeRequest, Pipeline } from '../types'
+import { hasFailed, isRunning } from './pipelines'
+
+export type ThemeColor = 'text' | 'subtle' | 'inactive' | 'claude' | 'success' | 'warning' | 'error'
+
+export interface Segment {
+  text: string
+  color: ThemeColor
+  href?: string
+}
+
+export const logo = '\u{f0ba0} '
+
+const space: Segment = { text: ' ', color: 'text' }
+const separator: Segment = { text: ' · ', color: 'subtle' }
+const conflictSign: Segment = { text: '⚠', color: 'error' }
+
+function pipelineSign(pipeline: Pipeline | null): Segment {
+  if (pipeline?.status === 'success') return { text: '✓', color: 'success' }
+  if (isRunning(pipeline)) return { text: '⟳', color: 'warning' }
+  if (hasFailed(pipeline)) return { text: '✗', color: 'error' }
+  return { text: '○', color: 'inactive' }
+}
+
+function mergeRequestSegments(mr: MergeRequest): Segment[] {
+  const signs = mr.hasConflicts ? [pipelineSign(mr.pipeline), conflictSign] : [pipelineSign(mr.pipeline)]
+  return [
+    { text: `!${String(mr.iid)}`, color: 'claude', href: mr.url },
+    space,
+    mr.isDraft ? { text: 'draft', color: 'warning' } : { text: 'open', color: 'success' },
+    { text: ' → ', color: 'subtle' },
+    { text: mr.targetBranch, color: 'text' },
+    ...signs.flatMap(sign => [space, sign]),
+  ]
+}
+
+export function statusSegments(status: BranchStatus): Segment[] | null {
+  if (status.branch === null) return null
+
+  const label: Segment = { text: logo, color: 'text' }
+  if (status.error !== null) return [label, { text: ` ${status.error.split('\n')[0] ?? ''}`, color: 'error' }]
+  if (status.mergeRequests === null) return [label, { text: ' loading...', color: 'inactive' }]
+  if (status.mergeRequests.length === 0) return [label, { text: ' none', color: 'inactive' }]
+
+  const entries = status.mergeRequests.map(mergeRequestSegments)
+  return [label, space, ...entries.flatMap((entry, index) => (index === 0 ? entry : [separator, ...entry]))]
+}
