@@ -1,7 +1,7 @@
 {
   "name": "merge-status",
-  "version": "0.1.0",
-  "description": "Shows the merge requests of the current branch under the prompt: target branch, pipeline and conflicts (GitLab via glab)",
+  "version": "0.2.0",
+  "description": "Shows the merge requests of the current branch under the prompt: target branch, pipeline and conflicts (GitLab via glab, GitHub via gh)",
   "author": {
     "name": "Jan Suthacheeva",
     "email": "jan.suthacheeva@gmail.com"
