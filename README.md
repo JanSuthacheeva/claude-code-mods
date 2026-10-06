@@ -10,7 +10,7 @@ skills see [agent-skills](https://github.com/JanSuthacheeva/agent-skills).
 
 | Mod | What it does |
 |---|---|
-| [merge-status](merge-status/README.md) | Shows the merge requests of the current branch in a row under the prompt: target branch, pipeline and conflict signs, linked to GitLab. Refetches on git events, polls running pipelines, and asks Claude to investigate a pipeline that fails. Needs [glab](https://gitlab.com/gitlab-org/cli), logged in. |
+| [merge-status](merge-status/README.md) | Shows the open merge requests of the current branch in a row under the prompt (merged and closed ones are left out): target branch, pipeline and conflict signs, linked to GitLab. Refetches on git events, polls running pipelines, and asks Claude to investigate a pipeline that fails. Needs [glab](https://gitlab.com/gitlab-org/cli), logged in. |
 
 ## Install
 

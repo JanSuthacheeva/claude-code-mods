@@ -1,10 +1,12 @@
 # merge-status
 
-A Claude Code mod that shows the GitLab merge requests of your current branch in a row under the prompt:
+A Claude Code mod that shows the open GitLab merge requests of your current branch in a row under the prompt:
 
 ```
 󰮠  !3609 open → develop ✓ ⚠ · !3610 draft → sprint-33-2 ○
 ```
+
+Only open MRs are shown, drafts included. Merged and closed MRs are left out, and a branch without an open MR shows `󰮠  none`.
 
 ## Requirements
 
@@ -29,13 +31,13 @@ If glab is missing or not logged in, the row says so and tells you how to fix it
 
 ## The row
 
-| Sign             | Meaning                                             |
-| ---------------- | --------------------------------------------------- |
-| `!3609`          | MR number, linked to its page                       |
-| `open` / `draft` | MR state; only open MRs are shown, otherwise `none` |
-| `→ develop`      | Target branch                                       |
-| `✓` `⟳` `✗` `○`  | Pipeline passed, running, failed, none              |
-| `⚠`              | Merge conflict                                      |
+| Sign             | Meaning                                |
+| ---------------- | -------------------------------------- |
+| `!3609`          | MR number, linked to its page          |
+| `open` / `draft` | Open MR, ready or draft                |
+| `→ develop`      | Target branch                          |
+| `✓` `⟳` `✗` `○`  | Pipeline passed, running, failed, none |
+| `⚠`              | Merge conflict                         |
 
 MRs are ordered by target branch: feature and bugfix branches first, then `develop`, `sprint-*` and `main`.
 Colors follow your Claude Code theme.
