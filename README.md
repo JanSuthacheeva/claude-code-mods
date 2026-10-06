@@ -14,8 +14,18 @@ skills see [agent-skills](https://github.com/JanSuthacheeva/agent-skills).
 
 ## Install
 
-Clone the repo and link a mod into your skills directory, so updates arrive
-with `git pull`. Claude Code loads it on the next start:
+This repository is a Claude Code plugin marketplace. In Claude Code:
+
+```
+/plugin marketplace add JanSuthacheeva/claude-code-mods
+/plugin install merge-status@claude-code-mods
+```
+
+`/plugin marketplace update claude-code-mods` pulls new versions.
+
+For development, clone the repo and link a mod into your skills directory
+instead, so changes load without reinstalling. An installed copy of the same
+mod takes precedence over the linked one:
 
 ```sh
 git clone https://github.com/JanSuthacheeva/claude-code-mods.git

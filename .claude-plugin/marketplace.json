@@ -1,0 +1,15 @@
+{
+  "name": "claude-code-mods",
+  "description": "Claude Code mods: plugins of function hooks that change what Claude Code itself shows and does",
+  "owner": {
+    "name": "Jan Suthacheeva",
+    "email": "jan.suthacheeva@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "merge-status",
+      "source": "./merge-status",
+      "description": "Shows the open merge requests (GitLab) or pull requests (GitHub) of the current branch under the prompt, with pipeline and conflict signs"
+    }
+  ]
+}

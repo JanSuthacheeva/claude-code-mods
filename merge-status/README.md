@@ -75,6 +75,21 @@ Taken in Claude Code on this repository's demo pull requests, and on a GitLab me
 
 If the CLI is missing or not logged in, the row says so and tells you how to fix it.
 
+## Install
+
+In Claude Code:
+
+```
+/plugin marketplace add JanSuthacheeva/claude-code-mods
+/plugin install merge-status@claude-code-mods
+```
+
+For development, link a clone of this repository instead:
+
+```sh
+ln -s "$PWD/claude-code-mods/merge-status" ~/.claude/skills/merge-status
+```
+
 ## The row
 
 | Sign             | Meaning                                |
