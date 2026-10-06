@@ -13,7 +13,8 @@ export interface Fingerprint {
 
 const urlRemote = /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]+@)?([^:/]+)/i
 const scpRemote = /^(?:[^@/]+@)?([^:/\\]{2,}):(?!\/\/)/
-const triggeringCommand = /\bgit\b(?:\s+-C\s+\S+)?\s+(?:checkout|switch|push|pull)\b|\b(?:glab\s+mr|gh\s+pr)\s+(?:create|new)\b/
+const triggeringCommand =
+  /\bgit\b(?:\s+-C\s+\S+)?\s+(?:checkout|switch|push|pull)\b|\b(?:glab\s+mr|gh\s+pr)\s+(?:create|new)\b/
 
 export function isTriggeringCommand(command: string): boolean {
   return triggeringCommand.test(command)

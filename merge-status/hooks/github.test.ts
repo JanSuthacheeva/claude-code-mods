@@ -111,7 +111,9 @@ test('explains a logged-out gh instead of echoing its output', () => {
 
   expect(describeFailure(loggedOut)).toBe(notLoggedInMessage)
   expect(describeFailure('HTTP 401: Bad credentials (https://api.github.com/graphql)')).toBe(notLoggedInMessage)
-  expect(describeFailure('\nGraphQL: Could not resolve to a Repository\n')).toBe('GraphQL: Could not resolve to a Repository')
+  expect(describeFailure('\nGraphQL: Could not resolve to a Repository\n')).toBe(
+    'GraphQL: Could not resolve to a Repository',
+  )
   expect(describeFailure('')).toBe('gh failed')
 })
 

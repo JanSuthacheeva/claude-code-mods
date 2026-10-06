@@ -38,7 +38,11 @@ test('polls running pipelines every 30s and failed ones every 2 minutes, passed 
   const passed = mergeRequest({ number: 1, pipeline: { status: 'passed', id: '1', url: '' } })
   const failed = mergeRequest({ number: 2, pipeline: { status: 'failed', id: '2', url: '' } })
   const awaiting = mergeRequest({ number: 3, pipeline: { status: 'awaiting' } })
-  const mergedWhileRunning = mergeRequest({ number: 4, state: 'merged', pipeline: { status: 'running', id: '4', url: '' } })
+  const mergedWhileRunning = mergeRequest({
+    number: 4,
+    state: 'merged',
+    pipeline: { status: 'running', id: '4', url: '' },
+  })
 
   expect(pollIntervalMs([passed])).toBeNull()
   expect(pollIntervalMs([failed])).toBe(120_000)
