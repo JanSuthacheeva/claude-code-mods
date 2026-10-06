@@ -1,14 +1,14 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { BranchStatus, MergeRequest } from '../types'
+import type { BranchStatus, IconStyle, MergeRequest } from '../types'
 import { mergeRequest } from './fixtures'
 import { github } from './github'
 import { gitlab } from './gitlab'
-import { statusSegments } from './status-line'
+import { iconStyleFrom, statusSegments } from './status-line'
 
-function lineFor(status: Partial<BranchStatus>): string | null {
+function lineFor(status: Partial<BranchStatus>, iconStyle: IconStyle = 'nerd-font'): string | null {
   const base: BranchStatus = { repo: '/repo', branch: 'feature/x', forge: 'gitlab', mergeRequests: [], error: null }
-  const segments = statusSegments({ ...base, ...status })
+  const segments = statusSegments({ ...base, ...status }, iconStyle)
   return segments?.map(segment => segment.text).join('') ?? null
 }
 
@@ -51,13 +51,24 @@ test('says none, loading or the error, and nothing outside a forge branch', () =
 })
 
 test('links each MR number to its page', () => {
-  const segments = statusSegments({
-    repo: '/repo',
-    branch: 'x',
-    forge: 'gitlab',
-    mergeRequests: [mergeRequest({ number: 8 })],
-    error: null,
-  })
+  const segments = statusSegments(
+    { repo: '/repo', branch: 'x', forge: 'gitlab', mergeRequests: [mergeRequest({ number: 8 })], error: null },
+    'nerd-font',
+  )
 
   expect(segments?.find(segment => segment.text === '!8')?.href).toBe('https://git.example/mr/8')
+})
+
+test('labels the row MR or PR instead of the logo without a Nerd Font', () => {
+  const mr = mergeRequest({ number: 8, pipeline: { status: 'passed', id: '1', url: '' } })
+
+  expect(lineFor({ mergeRequests: [mr] }, 'text')).toBe('MR !8 open → develop ✓')
+  expect(lineFor({ forge: 'github', mergeRequests: [mr] }, 'text')).toBe('PR #8 open → develop ✓')
+  expect(lineFor({ mergeRequests: [] }, 'text')).toBe('MR none')
+})
+
+test('falls back to the Nerd Font logo for any other icons setting', () => {
+  expect(iconStyleFrom('text')).toBe('text')
+  expect(iconStyleFrom('nerd-font')).toBe('nerd-font')
+  expect(iconStyleFrom(undefined)).toBe('nerd-font')
 })

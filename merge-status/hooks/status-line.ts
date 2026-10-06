@@ -1,4 +1,4 @@
-import type { BranchStatus, MergeRequest, Pipeline } from '../types'
+import type { BranchStatus, IconStyle, MergeRequest, Pipeline } from '../types'
 import { forgeNamed } from './forge'
 import type { Forge } from './forge'
 import { hasFailed, isRunning } from './pipelines'
@@ -34,11 +34,15 @@ function mergeRequestSegments(forge: Forge, mr: MergeRequest): Segment[] {
   ]
 }
 
-export function statusSegments(status: BranchStatus): Segment[] | null {
+export function iconStyleFrom(option: unknown): IconStyle {
+  return option === 'text' ? 'text' : 'nerd-font'
+}
+
+export function statusSegments(status: BranchStatus, iconStyle: IconStyle): Segment[] | null {
   if (status.branch === null || status.forge === null) return null
 
   const forge = forgeNamed(status.forge)
-  const label: Segment = { text: forge.logo, color: 'text' }
+  const label: Segment = { text: iconStyle === 'text' ? forge.noun : forge.logo, color: 'text' }
   if (status.error !== null) return [label, { text: ` ${status.error.split('\n')[0] ?? ''}`, color: 'error' }]
   if (status.mergeRequests === null) return [label, { text: ' loading...', color: 'inactive' }]
   if (status.mergeRequests.length === 0) return [label, { text: ' none', color: 'inactive' }]

@@ -1,5 +1,7 @@
 export type ForgeName = 'gitlab' | 'github'
 
+export type IconStyle = 'nerd-font' | 'text'
+
 export type MergeRequestState = 'open' | 'merged' | 'closed'
 
 export type PipelineStatus = 'running' | 'passed' | 'failed' | 'canceled' | 'idle'

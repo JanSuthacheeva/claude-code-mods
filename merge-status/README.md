@@ -69,7 +69,8 @@ Taken in Claude Code on this repository's demo pull requests, and on a GitLab me
   ```
   You only need the CLI of the forge you use.
 - **An `origin` remote on that host.** Repositories without an `origin` remote are ignored.
-- **A [Nerd Font](https://www.nerdfonts.com)** in your terminal for the GitLab and GitHub icons.
+- **Optional: a [Nerd Font](https://www.nerdfonts.com)** in your terminal for the GitLab and GitHub logos.
+  Without one, set `icons` to `text` (see [Settings](#settings)).
 - **macOS, Linux or Windows.** `/mr` opens links with `open` on macOS, `xdg-open` on Linux
   and the system URL handler on Windows. Developed and verified on macOS; Linux and Windows are covered by tests only.
 
@@ -77,12 +78,19 @@ If the CLI is missing or not logged in, the row says so and tells you how to fix
 
 ## Install
 
-In Claude Code:
-
-```
-/plugin marketplace add JanSuthacheeva/claude-code-mods
-/plugin install merge-status@claude-code-mods
-```
+1. Install the CLI of your forge and log in: `glab auth login` for GitLab, `gh auth login` for GitHub
+   (see [Requirements](#requirements)).
+2. In Claude Code, add the marketplace and install the mod:
+   ```
+   /plugin marketplace add JanSuthacheeva/claude-code-mods
+   /plugin install merge-status@claude-code-mods
+   ```
+3. No Nerd Font in your terminal? Switch the logo to a text label:
+   ```
+   /plugin configure merge-status@claude-code-mods
+   ```
+   and set `icons` to `text`.
+4. Restart Claude Code. In a repository with an open MR or PR on its current branch, the row appears under the prompt.
 
 For development, link a clone of this repository instead:
 
@@ -101,6 +109,15 @@ ln -s "$PWD/claude-code-mods/merge-status" ~/.claude/skills/merge-status
 | `⚠`              | Merge conflict                         |
 
 MRs are ordered by target branch: feature and bugfix branches first, then `develop`, `sprint-*` and `main`.
+
+## Settings
+
+| Setting | Values                             | Default     |
+| ------- | ---------------------------------- | ----------- |
+| `icons` | `nerd-font`: GitLab or GitHub logo | `nerd-font` |
+|         | `text`: `MR` or `PR` label         |             |
+
+Change it with `/plugin configure merge-status@claude-code-mods` in Claude Code, then restart.
 
 ## Commands
 

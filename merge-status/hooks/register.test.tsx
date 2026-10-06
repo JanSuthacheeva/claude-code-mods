@@ -129,3 +129,10 @@ test('tells you to log in when gh is not authenticated', async ($, on) => {
 
   expect(await statusLine($)).toBe(`${github.logo} ${github.notLoggedInMessage}`)
 })
+
+test('uses the text label when the icons setting is text', { options: { icons: 'text' } }, async ($, on) => {
+  const host = installFakeHost(on, repoWithTwoMergeRequests('gitlab'))
+  await startSession($, host)
+
+  expect(await statusLine($)).toMatch(/^MR !3609 open → develop/)
+})

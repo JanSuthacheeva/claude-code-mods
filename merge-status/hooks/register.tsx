@@ -18,7 +18,7 @@ import {
   sameNumbers,
   watchIntervalMs,
 } from './schedule'
-import { statusSegments } from './status-line'
+import { iconStyleFrom, statusSegments } from './status-line'
 
 type Listing = { mergeRequests: MergeRequest[] } | { error: string }
 
@@ -244,16 +244,20 @@ async function setVisible($: EngineInterface, visible: boolean): Promise<void> {
 
 // Hooks
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const iconStyle = iconStyleFrom(options['icons'])
+
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await $.command.register({
       name: 'mrs',
-      description: 'Toggle the merge requests (GitLab) or pull requests (GitHub) of the current branch under the prompt',
+      description:
+        'Toggle the merge requests (GitLab) or pull requests (GitHub) of the current branch under the prompt',
     })
     await $.command.register({
       name: 'mr',
-      description: 'Open an MR or PR of the current branch in the browser: /mr (first), /mr 2 (second), /mr 3609 (by number)',
+      description:
+        'Open an MR or PR of the current branch in the browser: /mr (first), /mr 2 (second), /mr 3609 (by number)',
     })
 
     const visible = (await $.store.get(visibilityStoreKey)) !== false
@@ -296,7 +300,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const engineHint = await next(e)
-    const segments = (await read($, isVisible)) ? statusSegments(await read($, branchStatus)) : null
+    const segments = (await read($, isVisible)) ? statusSegments(await read($, branchStatus), iconStyle) : null
     if (segments === null) return engineHint
 
     const { Box, Link, Text } = $.ui.resolve(e)
