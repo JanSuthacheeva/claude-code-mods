@@ -1,1 +1,2 @@
 Demo file for merge-status screenshots.
+Changed on the demo branch.
