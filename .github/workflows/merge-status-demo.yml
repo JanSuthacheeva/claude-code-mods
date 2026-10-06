@@ -1,0 +1,9 @@
+name: Demo checks
+on: pull_request
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sleep 75
+      - run: test ! -f demo-fail
