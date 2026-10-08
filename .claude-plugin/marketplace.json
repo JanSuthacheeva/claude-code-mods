@@ -10,6 +10,11 @@
       "name": "merge-status",
       "source": "./merge-status",
       "description": "Shows the open merge requests (GitLab) or pull requests (GitHub) of the current branch under the prompt, with pipeline and conflict signs"
+    },
+    {
+      "name": "skill-usage",
+      "source": "./skill-usage",
+      "description": "Counts how often each skill is invoked, by you and by Claude, against sessions, prompts and turns, and shows it above the prompt with /skill-usage"
     }
   ]
 }
