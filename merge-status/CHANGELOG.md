@@ -2,16 +2,18 @@
 
 All notable changes to merge-status are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] - 2026-10-10
-
-### Added
-
-- `icons` setting: `text` shows `MR` or `PR` instead of the GitLab or GitHub logo, for terminals without a Nerd Font.
+## [0.3.1] - 2026-10-10
 
 ### Fixed
 
 - The row comes back right after `/clear` instead of staying empty until the next git change.
 - A row hidden with `/mrs` stays hidden after `/clear`.
+
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- `icons` setting: `text` shows `MR` or `PR` instead of the GitLab or GitHub logo, for terminals without a Nerd Font.
 
 ## [0.2.0] - 2026-10-06
 
