@@ -1,36 +1,78 @@
 # skill-usage
 
-A Claude Code mod that counts how often each skill is invoked, and by whom, so you can see that across 50 sessions and 5,000 turns a skill was invoked 100 times.
-
-`/skill-usage` toggles a table above the prompt; run it again to hide it:
+A Claude Code mod that counts how often each skill is invoked, by you and by Claude, and shows the counts in a band above the prompt:
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│ Skill usage   12 sessions   340 prompts   1,204 turns   since 2026-10-08       │
+│ Skill usage   12 sessions   340 prompts   1,204 turns   since 2026-10-08     │
 │                                                                              │
-│      skill            you  claude  total                     /100p      last │
-│   1. commit            12      30     42  ████████████████████  12.4   2h ago │
-│   2. brainstorming      3      11     14  ███████▍──────────────  4.1   1d ago │
-│   3. code-review        5       0      5  ███──────────────────  1.5   3d ago │
+│     skill           you claude  total                        /100p      last │
+│  1. commit           12     30     42 █████████████████████   12.4    2h ago │
+│  2. brainstorming     3     11     14 ███████──────────────    4.1    1d ago │
+│  3. code-review       5      0      5 ██───────────────────    1.5    3d ago │
 │                                                                              │
-│                                  ■ you  ■ claude   /100p per 100 prompts     │
+│                                       ■ you  ■ claude  /100p per 100 prompts │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+Counts are set against sessions, prompts and turns, so you can see that across 50 sessions and 5,000 turns a skill was invoked 100 times.
+
+## Features
+
+- **You or Claude:** tells skills you typed as `/name` apart from skills Claude invoked through the Skill tool, in the main conversation or a subagent.
+- **Counts in context:** sessions, prompts and turns are counted alongside, and `/100p` gives each skill's invocations per 100 prompts.
+- **Ranked at a glance:** skills are ordered by total invocations, with a bar split into your share and Claude's, and when each was last used.
+- **Follows your Claude Code theme:** all colors come from the theme, and switching it with `/theme` recolors the band right away.
+- **Shared across sessions:** one small JSON file holds the counts for every session and project, and parallel sessions never overwrite each other's counts.
+- **Light on resources:** reads and writes one local file only, and costs no tokens.
+- **Fits the terminal:** the bar and name columns shrink to the terminal width, and skills beyond the band's height are summed up as `+N more`.
+
+## Requirements
+
+- **Claude Code with function-hook plugins (mods)**, tested on 2.1.293. The mod API is in early access and may change between releases.
+
+## Install
+
+1. In Claude Code, add the marketplace and install the mod:
+   ```
+   /plugin marketplace add JanSuthacheeva/claude-code-mods
+   /plugin install skill-usage@claude-code-mods
+   ```
+2. Restart Claude Code. Counting starts right away; run `/skill-usage` to see the band.
+
+For development, link a clone of this repository instead:
+
+```sh
+ln -s "$PWD/claude-code-mods/skill-usage" ~/.claude/skills/skill-usage
+```
+
+## The band
+
+| Column   | Meaning                                              |
+| -------- | ---------------------------------------------------- |
+| `you`    | Invocations you typed as `/name`                     |
+| `claude` | Invocations Claude made through the Skill tool       |
+| `total`  | Both together, the order of the list                 |
+| bar      | Your share, then Claude's, scaled to the top skill   |
+| `/100p`  | Invocations per 100 prompts                          |
+| `last`   | When the skill was last invoked, by you or by Claude |
+
+## Commands
+
+- `/skill-usage` shows or hides the band.
+
 ## What it counts
 
-- **you**: a skill you invoked by typing `/name`.
-- **claude**: a skill Claude invoked through the Skill tool, in the main conversation or a subagent.
-- **preload**: a skill whose prompt was expanded without either, such as one preloaded into a subagent. Recorded in the file, left out of the table.
-- **sessions**: each Claude Code session the mod ran in, once, however often it reloads.
-- **prompts**: the messages you sent, at the terminal or through Remote Control.
-- **turns**: the model turns, including the ones that continue without a new prompt.
-
-`/100p` is a skill's invocations per 100 prompts.
+- **you:** a skill you invoked by typing `/name`.
+- **claude:** a skill Claude invoked through the Skill tool, in the main conversation or a subagent.
+- **preload:** a skill whose prompt was expanded without either, such as one preloaded into a subagent. Kept in the file, left out of the band.
+- **sessions:** each Claude Code session the mod ran in, once, however often it reloads.
+- **prompts:** the messages you sent, at the terminal or through Remote Control.
+- **turns:** the model turns, including the ones that continue without a new prompt.
 
 ## Storage
 
-The counts are kept in `~/.claude/skill-usage.json`, shared by every session and project:
+The counts are kept in `~/.claude/skill-usage.json`:
 
 ```json
 {
@@ -51,11 +93,9 @@ The counts are kept in `~/.claude/skill-usage.json`, shared by every session and
 
 Delete the file to start counting afresh.
 
-## Tests
+## Development
 
 ```sh
-claude plugin validate skill-usage
-claude plugin test skill-usage
+claude plugin validate .
+claude plugin test .
 ```
-
-Tested on Claude Code 2.1.293.
