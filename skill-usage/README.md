@@ -2,11 +2,11 @@
 
 A Claude Code mod that counts how often each skill is invoked, and by whom, so you can see that across 50 sessions and 5,000 turns a skill was invoked 100 times.
 
-`/skill-usage` toggles a table above the prompt; run it again or press Close to hide it:
+`/skill-usage` toggles a table above the prompt; run it again to hide it:
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│ Skill usage   12 sessions   340 prompts   1,204 turns   since 2026-10-08  Close │
+│ Skill usage   12 sessions   340 prompts   1,204 turns   since 2026-10-08       │
 │                                                                              │
 │      skill            you  claude  total                     /100p      last │
 │   1. commit            12      30     42  ████████████████████  12.4   2h ago │

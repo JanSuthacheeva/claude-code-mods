@@ -181,7 +181,7 @@ export const register: Register = (on) => {
     const usage = await read($, cached);
     if (e.props.hasSurvey || !usage || !(await read($, isOpen))) return next(e);
 
-    const { Box, Button, Text } = $.ui.resolve(e);
+    const { Box, Text } = $.ui.resolve(e);
     const rows = Object.entries(usage.skills)
       .map(([name, stats]) => ({
         name,
@@ -223,21 +223,14 @@ export const register: Register = (on) => {
         borderColor="subtle"
         paddingX={1}
       >
-        <Box justifyContent="space-between">
-          <Box gap={3}>
-            <Text bold color="claude">
-              Skill usage
-            </Text>
-            {stat(usage.sessions, "sessions")}
-            {stat(usage.prompts, "prompts")}
-            {stat(usage.turns, "turns")}
-            <Text dimColor>since {usage.since.slice(0, 10)}</Text>
-          </Box>
-          <Button
-            key="close"
-            label="Close"
-            onPress={() => update($, isOpen, () => false)}
-          />
+        <Box gap={3}>
+          <Text bold color="claude">
+            Skill usage
+          </Text>
+          {stat(usage.sessions, "sessions")}
+          {stat(usage.prompts, "prompts")}
+          {stat(usage.turns, "turns")}
+          <Text dimColor>since {usage.since.slice(0, 10)}</Text>
         </Box>
 
         <Box gap={1} marginTop={1}>

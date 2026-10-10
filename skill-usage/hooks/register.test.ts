@@ -108,7 +108,7 @@ test("shows the counts above the prompt once toggled on", async ($, on) => {
     });
     expect(await ui.find({ type: "Text", text: /1 turns/ })).toBeDefined();
     expect(await ui.find({ type: "Text", text: /commit/ })).toBeDefined();
-    await ui.press({ key: "close" });
+    await $.command.run(typed("skill-usage"));
     expect(await ui.find({ type: "Text", text: /commit/ })).toBeUndefined();
     await ui.unmount();
     await $.command.run(typed("skill-usage"));
