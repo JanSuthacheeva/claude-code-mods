@@ -1,6 +1,6 @@
 import { mock } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import type { On, StateRead } from 'claude-code'
 
 import type { ForgeName, MergeRequestState } from '../types'
 import type { Platform } from './browser'
@@ -38,6 +38,7 @@ export interface FakeHost {
   forgeCalls: string[]
   openedWith: string[][]
   prompts: string[]
+  sessionState: Map<string, StateRead>
 }
 
 export const projectId = 9
@@ -170,6 +171,7 @@ export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
     forgeCalls: [],
     openedWith: [],
     prompts: [],
+    sessionState: new Map(),
   }
   mock.store(on)
   mock.env(on, repo.platform === 'windows' ? { OS: 'Windows_NT' } : {})
@@ -191,7 +193,14 @@ export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
     host.prompts.push(e.text)
     return { text: e.text }
   })
+  on('state.get', (_$, e) => ({ value: host.sessionState.get(e.key) ?? { value: undefined, version: 0 } }))
+  on('state.set', (_$, e) => {
+    const version = (host.sessionState.get(e.key)?.version ?? 0) + 1
+    host.sessionState.set(e.key, { value: e.value, version })
+    return { value: { isSet: true, version } }
+  })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
@@ -203,6 +212,12 @@ export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
 
 export async function startSession($: Engine, host: FakeHost): Promise<void> {
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await host.clock.advance(1)
+}
+
+export async function clearSession($: Engine, host: FakeHost): Promise<void> {
+  await $.session.end({ reason: 'clear', sessionId: 'first', resume: { id: 'first' } })
+  host.sessionState.clear()
   await host.clock.advance(1)
 }
 

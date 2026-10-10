@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { ForgeName } from '../types'
-import { installFakeHost, mergeRequestUrl, remoteUrls, startSession, statusLine } from './fake-host'
+import { clearSession, installFakeHost, mergeRequestUrl, remoteUrls, startSession, statusLine } from './fake-host'
 import type { FakeRepo } from './fake-host'
 import { forgeNamed } from './forge'
 import { github } from './github'
@@ -80,6 +80,29 @@ for (const name of forges) {
     expect(await runCommand($, 'mr')).toBe(`No open ${forge.noun} for this branch.`)
   })
 }
+
+test('shows the row again after /clear starts a fresh session', async ($, on) => {
+  const host = installFakeHost(on, repoWithTwoMergeRequests('gitlab'))
+  await startSession($, host)
+  const before = await statusLine($)
+
+  await clearSession($, host)
+  await host.clock.advance(15_000)
+
+  expect(await statusLine($)).toBe(before)
+})
+
+test('keeps the row hidden after /clear when /mrs hid it', async ($, on) => {
+  const host = installFakeHost(on, repoWithTwoMergeRequests('gitlab'))
+  await startSession($, host)
+  await runCommand($, 'mrs')
+
+  await clearSession($, host)
+  host.repo.branch = 'feature/y'
+  await host.clock.advance(15_000)
+
+  expect(await statusLine($)).toBeNull()
+})
 
 test('leaves the hint alone outside a repository with a remote host', async ($, on) => {
   const host = installFakeHost(on, { ...repoWithTwoMergeRequests('gitlab'), remoteUrl: '/srv/git/repo.git' })

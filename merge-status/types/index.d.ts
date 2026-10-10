@@ -35,6 +35,6 @@ export interface BranchStatus {
 
 declare module 'claude-code' {
   interface PluginState {
-    'merge-status': { branchStatus: BranchStatus; isVisible: boolean }
+    'merge-status': { branchStatus: BranchStatus; isVisible: boolean; isSessionStarted: boolean }
   }
 }

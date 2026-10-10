@@ -29,6 +29,7 @@ const emptyStatus: BranchStatus = { repo: null, branch: null, forge: null, merge
 
 const branchStatus = atom({ plugin: 'merge-status', key: 'branchStatus' } as const, emptyStatus)
 const isVisible = atom({ plugin: 'merge-status', key: 'isVisible' } as const, true)
+const isSessionStarted = atom({ plugin: 'merge-status', key: 'isSessionStarted' } as const, false)
 
 const tracking = initialTracking()
 
@@ -225,7 +226,18 @@ async function pollPipelines($: EngineInterface, status: BranchStatus): Promise<
   await reportFailures($, forge, status.branch, previous, polled)
 }
 
+async function startSession($: EngineInterface): Promise<void> {
+  await update($, isSessionStarted, () => true)
+  const visible = (await $.store.get(visibilityStoreKey)) !== false
+  await update($, isVisible, () => visible)
+  if (visible) await refresh($)
+}
+
 async function watch($: EngineInterface): Promise<void> {
+  if (!(await read($, isSessionStarted))) {
+    await startSession($)
+    return
+  }
   if (tracking.isRefreshing || !(await read($, isVisible))) return
 
   const fingerprint = await readFingerprint($)
@@ -260,10 +272,14 @@ export const register: Register = (on, options) => {
         'Open an MR or PR of the current branch in the browser: /mr (first), /mr 2 (second), /mr 3609 (by number)',
     })
 
-    const visible = (await $.store.get(visibilityStoreKey)) !== false
-    await update($, isVisible, () => visible)
-    if (visible) void refresh($)
+    void startSession($)
     $.clock.every(watchIntervalMs, () => void watch($))
+    return result
+  })
+
+  on('session.end', async ($, e, next) => {
+    const result = await next(e)
+    if (e.reason === 'clear') void startSession($)
     return result
   })
 
