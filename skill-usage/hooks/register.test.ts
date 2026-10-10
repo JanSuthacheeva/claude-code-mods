@@ -109,3 +109,32 @@ test('shows the counts above the prompt while toggled on', async ($, on) => {
     await $.command.run(typed('skill-usage'))
   }
 })
+
+test('shows only a hint, without headers or legend, before any skill is invoked', async ($, on) => {
+  installHost(on)
+  on('ui.render', { component: 'AbovePrompt' }, (engine, e) => {
+    const { Box } = engine.ui.resolve(e)
+    return h(Box, {}) as RenderElement
+  })
+
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  await $.command.run(typed('skill-usage'))
+  const ui = await $.ui.mount({
+    plugin: 'skill-usage',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: {
+      hasSurvey: false,
+      isWorking: false,
+      maxRows: 20,
+      bodyColumns: 100,
+      scroll: { offset: 0, bodyRows: 20 },
+      view: {},
+    },
+  })
+
+  expect(await ui.find({ type: 'Text', text: /No skill invocations yet/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^total$/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /per 100 prompts/ })).toBeUndefined()
+  await ui.unmount()
+})

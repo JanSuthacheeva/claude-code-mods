@@ -136,30 +136,34 @@ export const register: Register = on => {
           <Text dimColor>since {usage.since.slice(0, 10)}</Text>
         </Box>
 
-        <Box gap={1} marginTop={1}>
-          <Box width={columnWidths.rank} />
-          <Box width={nameWidth}>
-            <Text dimColor>skill</Text>
+        {rows.length === 0 ? (
+          <Box marginTop={1}>
+            <Text dimColor>No skill invocations yet. Type a /skill or let Claude use one.</Text>
           </Box>
-          <Box width={columnWidths.you} justifyContent="flex-end">
-            <Text color="suggestion">you</Text>
+        ) : (
+          <Box gap={1} marginTop={1}>
+            <Box width={columnWidths.rank} />
+            <Box width={nameWidth}>
+              <Text dimColor>skill</Text>
+            </Box>
+            <Box width={columnWidths.you} justifyContent="flex-end">
+              <Text color="permission">you</Text>
+            </Box>
+            <Box width={columnWidths.claude} justifyContent="flex-end">
+              <Text color="claude">claude</Text>
+            </Box>
+            <Box width={columnWidths.total} justifyContent="flex-end">
+              <Text dimColor>total</Text>
+            </Box>
+            <Box width={barWidth} />
+            <Box width={columnWidths.rate} justifyContent="flex-end">
+              <Text dimColor>/100p</Text>
+            </Box>
+            <Box width={columnWidths.last} justifyContent="flex-end">
+              <Text dimColor>last</Text>
+            </Box>
           </Box>
-          <Box width={columnWidths.claude} justifyContent="flex-end">
-            <Text color="claude">claude</Text>
-          </Box>
-          <Box width={columnWidths.total} justifyContent="flex-end">
-            <Text dimColor>total</Text>
-          </Box>
-          <Box width={barWidth} />
-          <Box width={columnWidths.rate} justifyContent="flex-end">
-            <Text dimColor>/100p</Text>
-          </Box>
-          <Box width={columnWidths.last} justifyContent="flex-end">
-            <Text dimColor>last</Text>
-          </Box>
-        </Box>
-
-        {rows.length === 0 && <Text dimColor>No skill invocations yet. Type a /skill or let Claude use one.</Text>}
+        )}
 
         {rows.map(row => (
           <Box key={row.name} gap={1}>
@@ -170,7 +174,7 @@ export const register: Register = on => {
               <Text wrap="truncate-end">{row.name}</Text>
             </Box>
             <Box width={columnWidths.you} justifyContent="flex-end">
-              <Text color="suggestion" dimColor={row.user === 0}>
+              <Text color="permission" dimColor={row.user === 0}>
                 {thousands(row.user)}
               </Text>
             </Box>
@@ -184,7 +188,7 @@ export const register: Register = on => {
             </Box>
             <Box width={barWidth}>
               <Text wrap="truncate">
-                <Text color="suggestion">{row.bar.you}</Text>
+                <Text color="permission">{row.bar.you}</Text>
                 <Text color="claude">{row.bar.claude}</Text>
                 <Text color="subtle">{row.bar.track}</Text>
               </Text>
@@ -198,12 +202,20 @@ export const register: Register = on => {
           </Box>
         ))}
 
-        <Box justifyContent="space-between" marginTop={1}>
-          <Text dimColor>{hiddenCount > 0 ? `+${String(hiddenCount)} more` : ''}</Text>
-          <Text dimColor>
-            <Text color="suggestion">■</Text> you <Text color="claude">■</Text> claude /100p per 100 prompts
-          </Text>
-        </Box>
+        {rows.length > 0 && (
+          <Box justifyContent="space-between" marginTop={1}>
+            <Text dimColor>{hiddenCount > 0 ? `+${String(hiddenCount)} more` : ''}</Text>
+            <Box gap={2}>
+              <Text dimColor>
+                <Text color="permission">■</Text> you
+              </Text>
+              <Text dimColor>
+                <Text color="claude">■</Text> claude
+              </Text>
+              <Text dimColor>/100p per 100 prompts</Text>
+            </Box>
+          </Box>
+        )}
       </Box>
     )
   })

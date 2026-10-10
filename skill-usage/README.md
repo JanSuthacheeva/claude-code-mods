@@ -2,20 +2,17 @@
 
 A Claude Code mod that counts how often each skill is invoked, by you and by Claude, and shows the counts in a band above the prompt:
 
-```
-╭──────────────────────────────────────────────────────────────────────────────╮
-│ Skill usage   12 sessions   340 prompts   1,204 turns   since 2026-10-08     │
-│                                                                              │
-│     skill           you claude  total                        /100p      last │
-│  1. commit           12     30     42 █████████████████████   12.4    2h ago │
-│  2. brainstorming     3     11     14 ███████──────────────    4.1    1d ago │
-│  3. code-review       5      0      5 ██───────────────────    1.5    3d ago │
-│                                                                              │
-│                                       ■ you  ■ claude  /100p per 100 prompts │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
+![Seven skills ranked by invocations, each with a bar split into your share and Claude's](docs/band.png)
 
 Counts are set against sessions, prompts and turns, so you can see that across 50 sessions and 5,000 turns a skill was invoked 100 times.
+
+## Screenshots
+
+Taken in Claude Code with made-up counts.
+
+**No invocations yet**, before any skill was used:
+
+![The band says no skill invocations yet](docs/empty.png)
 
 ## Features
 

@@ -36,7 +36,7 @@ const frameColumns = 4
 const frameRows = 7
 const columnGaps = 7
 const nameWidthRange = { min: 5, max: 26 }
-const barWidthRange = { min: 6, max: 32 }
+const minBarWidth = 6
 
 function clamp(value: number, range: { min: number; max: number }): number {
   return Math.max(range.min, Math.min(range.max, value))
@@ -82,7 +82,7 @@ export function bandLayout(usage: Usage, bodyColumns: number, maxRows: number, n
 
   const nameWidth = clamp(Math.max(0, ...shown.map(skill => skill.name.length)), nameWidthRange)
   const fixedWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0) + nameWidth + columnGaps
-  const barWidth = clamp(bodyColumns - frameColumns - fixedWidth, barWidthRange)
+  const barWidth = Math.max(minBarWidth, bodyColumns - frameColumns - fixedWidth)
   const max = Math.max(1, ...shown.map(skill => skill.total))
 
   const rows = shown.map((skill, index) => ({
