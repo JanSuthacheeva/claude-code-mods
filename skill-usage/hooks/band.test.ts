@@ -32,12 +32,14 @@ test('keeps at least a sliver of claude visible', () => {
   expect(stackedBar(100, 1, 101, 8).claude).toBe('▏')
 })
 
-test('fills the band width with the bar, down to a minimum', () => {
+test('grows the bar with the terminal up to a maximum, and the band hugs its columns', () => {
   const usage = withInvocation(emptyUsage(now), 'commit', 'user', now)
 
-  expect(bandLayout(usage, 100, 20, now)).toEqual(
-    expect.objectContaining({ nameWidth: 6, barWidth: 48, hiddenCount: 0 }),
+  expect(bandLayout(usage, 90, 20, now)).toEqual(
+    expect.objectContaining({ width: 90, nameWidth: 6, barWidth: 38, hiddenCount: 0 }),
   )
+  expect(bandLayout(usage, 100, 20, now)).toEqual(expect.objectContaining({ width: 92, barWidth: 40 }))
+  expect(bandLayout(usage, 240, 20, now)).toEqual(expect.objectContaining({ width: 92, barWidth: 40 }))
   expect(bandLayout(usage, 50, 20, now).barWidth).toBe(6)
 })
 

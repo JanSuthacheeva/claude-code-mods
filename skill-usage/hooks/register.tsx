@@ -110,7 +110,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey || usage === null || !(await read($, isOpen))) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const { nameWidth, barWidth, rows, hiddenCount } = bandLayout(
+    const { width, nameWidth, barWidth, rows, hiddenCount } = bandLayout(
       usage,
       e.props.bodyColumns,
       e.props.maxRows,
@@ -125,7 +125,7 @@ export const register: Register = on => {
     )
 
     return (
-      <Box flexDirection="column" width={e.props.bodyColumns} borderStyle="round" borderColor="subtle" paddingX={1}>
+      <Box flexDirection="column" width={width} borderStyle="round" borderColor="subtle" paddingX={1}>
         <Box gap={3}>
           <Text bold color="claude">
             Skill usage
