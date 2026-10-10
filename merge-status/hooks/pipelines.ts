@@ -1,4 +1,4 @@
-import type { MergeRequest, Pipeline, ResolvedPipeline } from '../types'
+import type { MergeRequest, Pipeline, PipelineStatus, ResolvedPipeline } from '../types'
 import type { MergeRequestDetails } from './forge'
 
 export interface PipelineContext {
@@ -7,7 +7,7 @@ export interface PipelineContext {
   hadPipeline: boolean
 }
 
-export type FailedMergeRequest = MergeRequest & { pipeline: ResolvedPipeline }
+export type FinishedMergeRequest = MergeRequest & { pipeline: ResolvedPipeline }
 
 const runningStatuses = new Set<Pipeline['status']>(['awaiting', 'running'])
 const failedStatuses = new Set<Pipeline['status']>(['failed', 'canceled'])
@@ -44,11 +44,20 @@ export function pollIntervalMs(mergeRequests: readonly MergeRequest[]): number |
   return polled.length > 0 ? failedPollMs : null
 }
 
-function isFailed(mr: MergeRequest): mr is FailedMergeRequest {
-  return mr.pipeline?.status === 'failed'
+function newlyReached(
+  status: PipelineStatus,
+  before: readonly MergeRequest[],
+  after: readonly MergeRequest[],
+): FinishedMergeRequest[] {
+  const previous = new Map(before.map(mr => [mr.number, mr.pipeline]))
+  const hasReached = (mr: MergeRequest): mr is FinishedMergeRequest => mr.pipeline?.status === status
+  return after.filter(hasReached).filter(mr => isRunning(previous.get(mr.number) ?? null))
 }
 
-export function newlyFailed(before: readonly MergeRequest[], after: readonly MergeRequest[]): FailedMergeRequest[] {
-  const previous = new Map(before.map(mr => [mr.number, mr.pipeline]))
-  return after.filter(isFailed).filter(mr => isRunning(previous.get(mr.number) ?? null))
+export function newlyFailed(before: readonly MergeRequest[], after: readonly MergeRequest[]): FinishedMergeRequest[] {
+  return newlyReached('failed', before, after)
+}
+
+export function newlyPassed(before: readonly MergeRequest[], after: readonly MergeRequest[]): FinishedMergeRequest[] {
+  return newlyReached('passed', before, after)
 }

@@ -45,8 +45,9 @@ Taken in Claude Code on this repository's demo pull requests, and on a GitLab me
 - **Stays current on its own:** refreshes after a checkout, switch, push, pull or new MR, whether Claude runs it or you do, and drops MRs merged or closed elsewhere.
 - **No stale results after a push:** waits for the new pipeline instead of showing the previous one as passed.
 - **Investigates failed pipelines:** when a pipeline you saw running fails, Claude looks into the failed jobs and reports the cause, without changing code.
+- **Tells Claude about passed pipelines:** with `notifyOnPass` on, a pipeline you saw running that passes adds a note Claude reads with its next turn, without starting one.
 - **Clickable MRs:** each MR number links to its page, and `/mr` opens one in your browser.
-- **Light on resources:** runs `glab` or `gh` and local `git` only, and costs no tokens apart from failure investigations. Pipelines are polled only while running or failed; otherwise one call every 2 minutes re-lists the open MRs.
+- **Light on resources:** runs `glab` or `gh` and local `git` only, and costs no tokens apart from failure investigations and pass notes. Pipelines are polled only while running or failed; otherwise one call every 2 minutes re-lists the open MRs.
 - **Clear setup hints:** if the CLI for your forge is missing or not logged in, the row says what to run.
 - **Cross-platform:** macOS, Linux and Windows.
 
@@ -112,12 +113,14 @@ MRs are ordered by target branch: feature and bugfix branches first, then `devel
 
 ## Settings
 
-| Setting | Values                             | Default     |
-| ------- | ---------------------------------- | ----------- |
-| `icons` | `nerd-font`: GitLab or GitHub logo | `nerd-font` |
-|         | `text`: `MR` or `PR` label         |             |
+| Setting        | Values                                                     | Default     |
+| -------------- | ---------------------------------------------------------- | ----------- |
+| `icons`        | `nerd-font`: GitLab or GitHub logo                         | `nerd-font` |
+|                | `text`: `MR` or `PR` label                                 |             |
+| `notifyOnPass` | `true`: tell Claude when a pipeline you saw running passes | `false`     |
+|                | `false`: stay quiet                                        |             |
 
-Change it with `/plugin configure merge-status@claude-code-mods` in Claude Code, then restart.
+Change them with `/plugin configure merge-status@claude-code-mods` in Claude Code, then restart.
 
 ## Commands
 
@@ -126,7 +129,7 @@ Change it with `/plugin configure merge-status@claude-code-mods` in Claude Code,
 
 ## What it fetches, and when
 
-Everything runs through `glab` or `gh` and local `git`; nothing reaches the model or costs tokens, except failure investigations.
+Everything runs through `glab` or `gh` and local `git`; nothing reaches the model or costs tokens, except failure investigations and pass notes.
 
 - **Full refresh** on session start and after a checkout, switch, push, pull, `glab mr create` or `gh pr create`,
   whether Claude runs it or you do (a local git check runs every 15 seconds).
@@ -135,6 +138,8 @@ Everything runs through `glab` or `gh` and local `git`; nothing reaches the mode
   Right after a push, the previous pipeline counts as running until the forge starts the new one.
 - **Failed pipelines** you saw running start one Claude turn that investigates the failure and reports the cause,
   without changing code. This turn costs tokens.
+- **Passed pipelines** you saw running, with `notifyOnPass` on, add one note to the conversation that Claude reads with
+  its next turn, and a `merge-status: PR #12 → main: checks passed` line in the transcript. No turn starts.
 
 ## Development
 

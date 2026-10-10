@@ -11,7 +11,7 @@ import {
   rollupStatus,
 } from './github'
 import type { ApiCheck } from './github'
-import type { FailedMergeRequest } from './pipelines'
+import type { FinishedMergeRequest } from './pipelines'
 
 const prUrl = 'https://github.com/team/repo/pull/12'
 
@@ -118,7 +118,7 @@ test('explains a logged-out gh instead of echoing its output', () => {
 })
 
 test('asks to investigate only, with the gh commands to get there', () => {
-  const failed: FailedMergeRequest = {
+  const failed: FinishedMergeRequest = {
     ...mergeRequest({ number: 12, project: 'github.com/team/repo', targetBranch: 'main' }),
     pipeline: { status: 'failed', id: 'abc1234def', url: `${prUrl}/checks` },
   }

@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { PipelineStatus } from '../types'
 import { mergeRequest } from './fixtures'
 import type { MergeRequestDetails } from './forge'
-import { newlyFailed, pollIntervalMs, resolvePipeline } from './pipelines'
+import { newlyFailed, newlyPassed, pollIntervalMs, resolvePipeline } from './pipelines'
 
 function details(sha: string, pipeline: { status: PipelineStatus; sha: string } | null): MergeRequestDetails {
   return {
@@ -59,4 +59,17 @@ test('reports a failure only for pipelines seen running before', () => {
   expect(newlyFailed([awaiting], [failed])).toEqual([failed])
   expect(newlyFailed([failed], [failed])).toEqual([])
   expect(newlyFailed([], [failed])).toEqual([])
+})
+
+test('reports a pass only for pipelines seen running before', () => {
+  const running = mergeRequest({ number: 8, pipeline: { status: 'running', id: '77', url: '' } })
+  const awaiting = mergeRequest({ number: 8, pipeline: { status: 'awaiting' } })
+  const passed = mergeRequest({ number: 8, pipeline: { status: 'passed', id: '77', url: '' } })
+  const failed = mergeRequest({ number: 8, pipeline: { status: 'failed', id: '77', url: '' } })
+
+  expect(newlyPassed([running], [passed])).toEqual([passed])
+  expect(newlyPassed([awaiting], [passed])).toEqual([passed])
+  expect(newlyPassed([passed], [passed])).toEqual([])
+  expect(newlyPassed([], [passed])).toEqual([])
+  expect(newlyPassed([running], [failed])).toEqual([])
 })

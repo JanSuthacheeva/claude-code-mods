@@ -1,6 +1,6 @@
 import type { MergeRequest, MergeRequestState, PipelineStatus } from '../types'
 import type { Forge, MergeRequestDetails } from './forge'
-import type { FailedMergeRequest } from './pipelines'
+import type { FinishedMergeRequest } from './pipelines'
 
 type ApiPullRequestState = 'OPEN' | 'CLOSED' | 'MERGED'
 
@@ -149,7 +149,7 @@ export function parseDetails(json: string): MergeRequestDetails {
   }
 }
 
-export function investigationPrompt(mr: FailedMergeRequest, sourceBranch: string): string {
+export function investigationPrompt(mr: FinishedMergeRequest, sourceBranch: string): string {
   const { project, pipeline } = mr
   const failedChecks = `gh pr checks ${String(mr.number)} --repo ${project}`
   const runLog = `gh run view <run-id> --repo ${project} --log-failed`
@@ -166,6 +166,7 @@ export const github: Forge = {
   name: 'github',
   cli: 'gh',
   noun: 'PR',
+  pipelineNoun: 'checks',
   sigil: '#',
   logo: '\u{f02a4} ',
   notInstalledMessage,

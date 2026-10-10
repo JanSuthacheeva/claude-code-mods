@@ -1,6 +1,6 @@
 import type { MergeRequest, MergeRequestState, PipelineStatus } from '../types'
 import type { Forge, MergeRequestDetails } from './forge'
-import type { FailedMergeRequest } from './pipelines'
+import type { FinishedMergeRequest } from './pipelines'
 
 type ApiMergeRequestState = 'opened' | 'merged' | 'closed' | 'locked'
 
@@ -127,7 +127,7 @@ export function parseDetails(json: string): MergeRequestDetails {
   }
 }
 
-export function investigationPrompt(mr: FailedMergeRequest, sourceBranch: string): string {
+export function investigationPrompt(mr: FinishedMergeRequest, sourceBranch: string): string {
   const { project, pipeline } = mr
   const failedJobs = `glab api 'projects/${project}/pipelines/${pipeline.id}/jobs?scope=failed'`
   const jobLog = `glab api projects/${project}/jobs/<job-id>/trace`
@@ -144,6 +144,7 @@ export const gitlab: Forge = {
   name: 'gitlab',
   cli: 'glab',
   noun: 'MR',
+  pipelineNoun: 'pipeline',
   sigil: '!',
   logo: '\u{f0ba0} ',
   notInstalledMessage,

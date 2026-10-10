@@ -2,6 +2,12 @@
 
 All notable changes to merge-status are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-10
+
+### Added
+
+- `notifyOnPass` setting: when a pipeline you saw running passes, Claude gets a note it reads with its next turn, without a turn being started, and the transcript shows a line saying so.
+
 ## [0.3.1] - 2026-10-10
 
 ### Fixed

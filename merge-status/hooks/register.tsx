@@ -4,12 +4,12 @@ import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
 import type { BranchStatus, MergeRequest } from '../types'
 import { detectPlatform, isWindows, openUrlArgv } from './browser'
 import type { Platform } from './browser'
-import { describeProcessError, detectForge, forgeNamed } from './forge'
+import { describeProcessError, detectForge, forgeNamed, passedLine, passedNote } from './forge'
 import type { Forge } from './forge'
 import { isTriggeringCommand, remoteBranchName, toFingerprint } from './git'
 import type { Fingerprint, Location } from './git'
 import { openByPriority, pickMergeRequest } from './merge-requests'
-import { needsPolling, newlyFailed, resolvePipeline } from './pipelines'
+import { needsPolling, newlyFailed, newlyPassed, resolvePipeline } from './pipelines'
 import {
   hasMovedUpstream,
   initialTracking,
@@ -32,6 +32,7 @@ const isVisible = atom({ plugin: 'merge-status', key: 'isVisible' } as const, tr
 const isSessionStarted = atom({ plugin: 'merge-status', key: 'isSessionStarted' } as const, false)
 
 const tracking = initialTracking()
+const settings = { notifyOnPass: false }
 
 let platform: Platform | null = null
 
@@ -118,7 +119,7 @@ async function withPipeline(
   return { ...mr, pipeline: resolvePipeline(details, context), hasConflicts: details.hasConflicts }
 }
 
-async function reportFailures(
+async function reportFinished(
   $: EngineInterface,
   forge: Forge,
   sourceBranch: string,
@@ -131,6 +132,13 @@ async function reportFailures(
 
     await $.store.set(storeKey, true)
     void $.prompt.submit({ text: forge.investigationPrompt(mr, sourceBranch) })
+  }
+
+  if (!settings.notifyOnPass) return
+  for (const mr of newlyPassed(before, after)) {
+    const text = passedNote(forge, mr, sourceBranch)
+    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
+    $.ui.log(passedLine(forge, mr))
   }
 }
 
@@ -177,7 +185,7 @@ async function load($: EngineInterface): Promise<void> {
     listing.mergeRequests.map(mr => withPipeline($, forge, mr, previousByNumber.get(mr.number))),
   )
   await setBranchStatus($, { ...location, mergeRequests, error: null })
-  await reportFailures($, forge, location.branch, previous, mergeRequests)
+  await reportFinished($, forge, location.branch, previous, mergeRequests)
 }
 
 async function refresh($: EngineInterface): Promise<void> {
@@ -223,7 +231,7 @@ async function pollPipelines($: EngineInterface, status: BranchStatus): Promise<
   if (isStale(generation)) return
 
   await setBranchStatus($, { ...status, mergeRequests: polled })
-  await reportFailures($, forge, status.branch, previous, polled)
+  await reportFinished($, forge, status.branch, previous, polled)
 }
 
 async function startSession($: EngineInterface): Promise<void> {
@@ -258,6 +266,7 @@ async function setVisible($: EngineInterface, visible: boolean): Promise<void> {
 
 export const register: Register = (on, options) => {
   const iconStyle = iconStyleFrom(options['icons'])
+  settings.notifyOnPass = options['notifyOnPass'] === true
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)

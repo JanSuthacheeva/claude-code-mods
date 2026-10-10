@@ -1,8 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
-import { describeProcessError, detectForge } from './forge'
+import { describeProcessError, detectForge, passedLine, passedNote } from './forge'
 import { github } from './github'
 import { gitlab } from './gitlab'
+import type { FinishedMergeRequest } from './pipelines'
+import { mergeRequest } from './fixtures'
 
 test('picks GitHub for github.com and github.* hosts, GitLab for any other host', () => {
   expect(detectForge('git@github.com:me/repo.git')).toBe(github)
@@ -29,4 +31,19 @@ test('names the missing CLI of the forge in use', () => {
   expect(describeProcessError(github, new Error('process still running after 20000ms'))).toBe(
     'gh did not answer in time',
   )
+})
+
+test('tells Claude about a passed pipeline without asking for anything', () => {
+  const passed: FinishedMergeRequest = {
+    ...mergeRequest({ number: 12 }),
+    pipeline: { status: 'passed', id: '42', url: 'https://git.example/p/42' },
+  }
+
+  expect(passedNote(gitlab, passed, 'feature/x')).toBe(
+    'Automatic note from the merge-status plugin, not written by the user: the pipeline of MR !12 (feature/x → develop) passed: https://git.example/p/42\n' +
+      'For your information only: no action needed.',
+  )
+  expect(passedNote(github, passed, 'feature/x')).toContain('the checks of PR #12 (feature/x → develop) passed')
+  expect(passedLine(gitlab, passed)).toBe('MR !12 → develop: pipeline passed')
+  expect(passedLine(github, passed)).toBe('PR #12 → develop: checks passed')
 })

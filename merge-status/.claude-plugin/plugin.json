@@ -1,6 +1,6 @@
 {
   "name": "merge-status",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Shows the merge requests of the current branch under the prompt: target branch, pipeline and conflicts (GitLab via glab, GitHub via gh)",
   "author": {
     "name": "Jan Suthacheeva",
@@ -14,6 +14,12 @@
       "description": "nerd-font shows the GitLab or GitHub logo and needs a Nerd Font; text shows MR or PR instead",
       "options": ["nerd-font", "text"],
       "default": "nerd-font"
+    },
+    "notifyOnPass": {
+      "type": "boolean",
+      "title": "Notify on pass",
+      "description": "Tells Claude when a pipeline you saw running passes, without starting a turn",
+      "default": false
     }
   }
 }

@@ -9,7 +9,7 @@ import {
   parseMergeRequests,
   pipelineStatus,
 } from './gitlab'
-import type { FailedMergeRequest } from './pipelines'
+import type { FinishedMergeRequest } from './pipelines'
 
 test('maps the GitLab list payload onto merge requests', () => {
   const payload = JSON.stringify([
@@ -97,7 +97,7 @@ test('explains a logged-out glab instead of echoing its banner', () => {
 })
 
 test('asks to investigate only, with the glab commands to get there', () => {
-  const failed: FailedMergeRequest = {
+  const failed: FinishedMergeRequest = {
     ...mergeRequest({ number: 8 }),
     pipeline: { status: 'failed', id: '77', url: 'https://git.example/p/77' },
   }

@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import type { ForgeName } from '../types'
 import { installFakeHost, pipelineUrl, projects, remoteUrls, startSession, statusLine } from './fake-host'
@@ -121,5 +121,37 @@ for (const name of forges) {
 
     await host.clock.advance(10 * minute)
     expect(host.prompts).toHaveLength(1)
+  })
+
+  test(
+    `${name}: tells Claude once when a running pipeline passes, without starting a turn`,
+    { options: { notifyOnPass: true } },
+    async ($, on) => {
+      const session = mock.session(on)
+      const mr = openMergeRequest({ pipeline: { id: 600, status: 'running', sha: 'f1' } })
+      const host = installFakeHost(on, repoWith(name, mr))
+      await startSession($, host)
+
+      mr.pipeline = { id: 600, status: 'success', sha: 'f1' }
+      await host.clock.advance(30_000)
+      await host.clock.advance(10 * minute)
+
+      const notes = session.appended().map(row => JSON.stringify(row.message.content))
+      expect(notes).toHaveLength(1)
+      expect(notes[0]).toContain(`${label(1)} (feature/x → develop) passed`)
+      expect(host.prompts).toEqual([])
+    },
+  )
+
+  test(`${name}: keeps quiet about a passed pipeline while notifyOnPass is off`, async ($, on) => {
+    const session = mock.session(on)
+    const mr = openMergeRequest({ pipeline: { id: 600, status: 'running', sha: 'f1' } })
+    const host = installFakeHost(on, repoWith(name, mr))
+    await startSession($, host)
+
+    mr.pipeline = { id: 600, status: 'success', sha: 'f1' }
+    await host.clock.advance(30_000)
+    expect(await statusLine($)).toContain('✓')
+    expect(session.appended()).toEqual([])
   })
 }
