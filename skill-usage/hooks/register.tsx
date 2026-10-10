@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Source, Usage } from '../types'
-import { initialAttribution, sourceOf, typedCommandOf } from './attribution'
+import { initialAttribution, sourceOf, typedCommandOf, typedSkillOf } from './attribution'
 import { bandLayout, columnWidths, thousands } from './band'
 import { parseUsage, serializeUsage, withCount, withInvocation } from './usage'
 import type { Counter } from './usage'
@@ -50,6 +50,11 @@ function countInvocation($: EngineInterface, skill: string, source: Source): Pro
   return changeUsage($, (usage, now) => withInvocation(usage, skill, source, now))
 }
 
+async function countTypedSkill($: EngineInterface, typed: string): Promise<void> {
+  const skill = typedSkillOf(typed, await $.command.list())
+  if (skill !== null) await countInvocation($, skill, 'user')
+}
+
 // Hooks
 
 export const register: Register = on => {
@@ -64,8 +69,10 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
-      attribution.typedCommand = typedCommandOf(e.text)
+      const typed = typedCommandOf(e.text)
+      attribution.typedCommand = typed
       void count($, 'prompts')
+      if (typed !== null && typed !== commandName) void countTypedSkill($, typed).catch(() => undefined)
     }
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -75,12 +82,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', async ($, e, next) => {
-    if (e.command !== commandName) {
-      attribution.typedCommand = e.command
-      return next(e)
-    }
-
+  on('command.run', { command: commandName }, async $ => {
     await pendingWrites
     const isShown = await update($, isOpen, open => !open)
     return { text: isShown ? 'Skill usage shown above the prompt.' : 'Skill usage hidden.' }
@@ -99,8 +101,11 @@ export const register: Register = on => {
 
   on('skill.prompt', async ($, e, next) => {
     const source = sourceOf(attribution, e.skill)
+    if (source === 'user') {
+      attribution.typedCommand = null
+      return next(e)
+    }
     if (source === 'claude') attribution.isSkillCallCounted = true
-    if (source === 'user') attribution.typedCommand = null
     void countInvocation($, e.skill, source)
     return next(e)
   })

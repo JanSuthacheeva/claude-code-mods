@@ -1,4 +1,4 @@
-import type { On, RenderElement } from 'claude-code'
+import type { CommandInfo, On, RenderElement } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
@@ -15,6 +15,13 @@ function typed(command: string) {
   } as const
 }
 
+const commands: CommandInfo[] = [
+  { name: 'clear', description: '', source: 'builtin' },
+  { name: 'commit', description: '', source: 'user' },
+  { name: 'superpowers:brainstorming', description: '', source: 'plugin', plugin: 'superpowers' },
+  { name: 'mrs', description: '', source: 'plugin', plugin: 'merge-status' },
+]
+
 function installHost(on: On): () => Usage {
   const files = new Map<string, string>()
   mock.env(on, { HOME: '/home/test' })
@@ -27,6 +34,8 @@ function installHost(on: On): () => Usage {
   })
   on('skill.prompt', ($, e) => ({ text: e.text }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('command.list', () => ({ value: commands }))
   return () => JSON.parse(files.get(usagePath) ?? '{}') as Usage
 }
 
@@ -47,14 +56,38 @@ test('counts Claude invocations through the Skill tool', async ($, on) => {
   expect(usage().skills['commit']).toEqual(expect.objectContaining({ user: 0, claude: 1, preload: 0 }))
 })
 
-test('counts a typed slash command as a user invocation', async ($, on) => {
-  const usage = installHost(on)
-  on('command.run', { command: 'commit' }, async () => {
-    await $.skill.prompt({ skill: 'commit', text: 'body' })
-    return { text: '' }
-  })
+async function type($: Engine, text: string): Promise<void> {
+  await $.prompt.submit({ text, origin: { kind: 'composer' }, wait: false })
+}
 
-  await $.command.run(typed('commit'))
+test('counts a typed skill as a user invocation, by its listed name', async ($, on) => {
+  const usage = installHost(on)
+
+  await type($, '/commit fix the readme')
+  await type($, '/brainstorming')
+  await $.command.run(typed('skill-usage'))
+
+  expect(usage().skills['commit']).toEqual(expect.objectContaining({ user: 1, claude: 0, preload: 0 }))
+  expect(usage().skills['superpowers:brainstorming']).toEqual(expect.objectContaining({ user: 1 }))
+})
+
+test('leaves built-in commands and commands a mod registers uncounted', async ($, on) => {
+  const usage = installHost(on)
+
+  await type($, '/clear')
+  await type($, '/mrs')
+  await type($, '/skill-usage')
+  await $.command.run(typed('skill-usage'))
+
+  expect(usage().skills).toEqual({})
+  expect(usage().prompts).toBe(3)
+})
+
+test('counts a typed skill once when its prompt is expanded too', async ($, on) => {
+  const usage = installHost(on)
+
+  await type($, '/commit')
+  await $.skill.prompt({ skill: 'commit', text: 'body' })
   await $.command.run(typed('skill-usage'))
 
   expect(usage().skills['commit']).toEqual(expect.objectContaining({ user: 1, claude: 0, preload: 0 }))

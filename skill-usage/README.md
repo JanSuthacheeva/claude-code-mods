@@ -60,7 +60,7 @@ ln -s "$PWD/claude-code-mods/skill-usage" ~/.claude/skills/skill-usage
 
 ## What it counts
 
-- **you:** a skill you invoked by typing `/name`.
+- **you:** a skill you invoked by typing `/name`, your own command files and plugin skills included. Built-in commands and commands a mod registers, such as `/mrs`, are not skills and are not counted.
 - **claude:** a skill Claude invoked through the Skill tool, in the main conversation or a subagent.
 - **preload:** a skill whose prompt was expanded without either, such as one preloaded into a subagent. Kept in the file, left out of the band.
 - **sessions:** each Claude Code session the mod ran in, once, however often it reloads.

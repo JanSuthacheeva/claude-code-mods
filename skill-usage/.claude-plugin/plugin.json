@@ -1,6 +1,6 @@
 {
   "name": "skill-usage",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Counts how often each skill is invoked, by you and by Claude, against sessions, prompts and turns, and shows it above the prompt",
   "author": {
     "name": "Jan Suthacheeva",
