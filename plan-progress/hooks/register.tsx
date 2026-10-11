@@ -168,7 +168,6 @@ const icons: Record<ItemState, { glyph: string; color: string }> = {
 }
 
 const panePadding = 1
-const pillCaps = { left: '\ue0b6', right: '\ue0b4' }
 
 const statusColors: Record<ReportStatus, string> = { doing: 'claude', done: 'success', blocked: 'warning' }
 
@@ -234,7 +233,6 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: paneId }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
-    const isTerminal = e.surface === 'terminal'
     const { progress, outline, error } = await read($, view)
     const time = await read($, now)
 
@@ -271,7 +269,7 @@ export const register: Register = on => {
       )
     }
 
-    const pillColumnWidth = Math.max(0, ...model.recent.map(row => row.status.length)) + (isTerminal ? 4 : 2)
+    const statusColumnWidth = Math.max(0, ...model.recent.map(row => row.status.length)) + 1
     const barColor = model.isComplete ? 'success' : 'claude'
     const focusColor = model.focus?.label === 'Blocked' ? 'warning' : model.focus?.label === 'Now' ? 'claude' : 'subtle'
 
@@ -369,17 +367,11 @@ export const register: Register = on => {
         {model.recent.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
             <Text dimColor>Recent</Text>
-            <Box flexDirection="column" rowGap={1} marginTop={1}>
+            <Box flexDirection="column">
               {model.recent.map(row => (
                 <Box key={row.key} gap={1}>
-                  <Box width={pillColumnWidth} flexShrink={0}>
-                    <Text>
-                      {isTerminal && <Text color={statusColors[row.status]}>{pillCaps.left}</Text>}
-                      <Text backgroundColor={statusColors[row.status]} color="inverseText">
-                        {` ${row.status} `}
-                      </Text>
-                      {isTerminal && <Text color={statusColors[row.status]}>{pillCaps.right}</Text>}
-                    </Text>
+                  <Box width={statusColumnWidth} flexShrink={0}>
+                    <Text color={statusColors[row.status]}>{row.status}</Text>
                   </Box>
                   <Box flexGrow={1} flexShrink={1}>
                     <Text dimColor wrap="truncate-end">

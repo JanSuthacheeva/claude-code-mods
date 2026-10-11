@@ -34,13 +34,13 @@ test('done on another item keeps the current one', () => {
   expect(progress.current?.ref).toBe('3')
 })
 
-test('recent keeps the last three items', () => {
+test('recent keeps the last four items, one more than the pane shows', () => {
   let progress = emptyProgress('/p.md')
-  for (const [index, ref] of ['1', '2', '3', '4'].entries()) {
+  for (const [index, ref] of ['1', '2', '3', '4', '5'].entries()) {
     progress = withReport(progress, reportOf(ref, 'done', index))
   }
 
-  expect(progress.recent.map(one => one.ref)).toEqual(['4', '3', '2'])
+  expect(progress.recent.map(one => one.ref)).toEqual(['5', '4', '3', '2'])
 })
 
 test('summarizes counts and the next item', () => {

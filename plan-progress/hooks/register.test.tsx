@@ -121,20 +121,15 @@ test('opens the pane on the first report and draws progress on every surface', a
   }
 })
 
-test('shows finished reports under Recent with a status pill', async ($, on) => {
+test('shows finished reports under Recent with their status', async ($, on) => {
   installHost(on)
   await start($)
 
   await $.tool.call({ tool, plan: planPath, item: '2', status: 'done' })
 
-  const terminal = await mountPane($, 'terminal')
-  expect(await terminal.find({ type: 'Text', text: ' done ' })).toBeDefined()
-  expect(await terminal.find({ type: 'Text', text: '\ue0b6' })).toBeDefined()
-  await terminal.unmount()
-
-  const desktop = await mountPane($, 'desktop')
-  expect(await desktop.find({ type: 'Text', text: ' done ' })).toBeDefined()
-  await desktop.unmount()
+  const pane = await mountPane($, 'terminal')
+  expect(await pane.find({ type: 'Text', text: 'done' })).toBeDefined()
+  await pane.unmount()
 })
 
 test('keeps the tracked plan for the next session of the project', async ($, on) => {

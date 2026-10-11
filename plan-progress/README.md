@@ -40,13 +40,11 @@ ln -s "$PWD/claude-code-mods/plan-progress" ~/.claude/skills/plan-progress
 | Now    | The item Claude reported as `doing`, how long ago and its note. `Blocked` when stuck    |
 | Next   | The open item after it. Without a report, the first open item                           |
 | Groups | One row per heading with its count. Only the active group shows its items               |
-| Recent | The last reports besides the current item, one row per item, with a status pill         |
+| Recent | The last reports besides the current item, one row per item, in its status color        |
 
 A blocked item keeps its `!` until it is done, so you see what still needs you after Claude moves on.
 
-![Claude is on 2.2 while 2.1 stays marked blocked and shows a blocked pill under Recent](docs/blocked.png)
-
-The pills get rounded ends from Nerd Font glyphs, which most terminal setups with icons in the prompt already have. Without one, the ends show as boxes.
+![Claude is on 2.2 while 2.1 stays marked blocked and shows as blocked under Recent](docs/blocked.png)
 
 When every box is ticked, the bar and the header turn to the theme's success color.
 

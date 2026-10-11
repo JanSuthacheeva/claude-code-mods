@@ -1,6 +1,6 @@
 import type { Outline, PlanGroup, PlanItem, Progress, Report, ReportStatus } from '../types'
 import { allItems, counts } from './outline'
-import { fileName } from './progress'
+import { fileName, recentRows } from './progress'
 
 export type ItemState = 'done' | 'active' | 'blocked' | 'open'
 
@@ -153,6 +153,7 @@ export function paneModel(
     groups,
     recent: progress.recent
       .filter(report => !isSameReport(report, current))
+      .slice(0, recentRows)
       .map(report => ({
         key: `${report.ref}-${String(report.at)}`,
         age: relativeAge(report.at, now),

@@ -2,7 +2,8 @@ import type { Outline, Progress, Report } from '../types'
 import type { Target } from './matching'
 import { allItems, counts } from './outline'
 
-export const recentLimit = 3
+export const recentRows = 3
+const recentLimit = recentRows + 1
 
 export function emptyProgress(plan: string): Progress {
   return { plan, current: null, recent: [] }
