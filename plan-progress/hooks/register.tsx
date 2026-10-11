@@ -168,10 +168,11 @@ const icons: Record<ItemState, { glyph: string; color: string }> = {
 }
 
 const pillWidth = 9
+const pillCaps = { left: '\ue0b6', right: '\ue0b4' }
 
-function pillLabel(status: ReportStatus): string {
-  const left = Math.floor((pillWidth - status.length) / 2)
-  return ' '.repeat(left) + status + ' '.repeat(pillWidth - status.length - left)
+function pillLabel(status: ReportStatus, width: number): string {
+  const left = Math.floor((width - status.length) / 2)
+  return ' '.repeat(left) + status + ' '.repeat(width - status.length - left)
 }
 
 const statusColors: Record<ReportStatus, string> = { doing: 'claude', done: 'success', blocked: 'warning' }
@@ -238,6 +239,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: paneId }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
+    const isTerminal = e.surface === 'terminal'
     const { progress, outline, error } = await read($, view)
     const time = await read($, now)
 
@@ -377,9 +379,19 @@ export const register: Register = on => {
                   <Text dimColor>{row.age}</Text>
                 </Box>
                 <Box width={pillWidth} flexShrink={0}>
-                  <Text backgroundColor={statusColors[row.status]} color="inverseText">
-                    {pillLabel(row.status)}
-                  </Text>
+                  {isTerminal ? (
+                    <Text>
+                      <Text color={statusColors[row.status]}>{pillCaps.left}</Text>
+                      <Text backgroundColor={statusColors[row.status]} color="inverseText">
+                        {pillLabel(row.status, pillWidth - 2)}
+                      </Text>
+                      <Text color={statusColors[row.status]}>{pillCaps.right}</Text>
+                    </Text>
+                  ) : (
+                    <Text backgroundColor={statusColors[row.status]} color="inverseText">
+                      {pillLabel(row.status, pillWidth)}
+                    </Text>
+                  )}
                 </Box>
                 <Text dimColor wrap="truncate-end">
                   {row.ref} {row.text}

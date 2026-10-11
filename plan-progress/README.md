@@ -42,6 +42,8 @@ ln -s "$PWD/claude-code-mods/plan-progress" ~/.claude/skills/plan-progress
 | Groups | One row per heading with its count. Only the active group shows its items               |
 | Recent | The last reports besides the current item, one row per item, with a status pill         |
 
+The pills get rounded ends from Nerd Font glyphs, which most terminal setups with icons in the prompt already have. Without one, the ends show as boxes.
+
 When every box is ticked, the bar and the header turn to the theme's success color.
 
 ![A finished plan: all three tasks ticked and the header says complete](docs/complete.png)
