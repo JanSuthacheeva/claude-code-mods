@@ -2,25 +2,7 @@
 
 A Claude Code mod that shows where you and Claude are in a plan file, in a side pane: what is done, what Claude is working on right now, and what is left.
 
-```
-GitHub support                              4/9
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Now     2.2 Step 2: Implement rollupStatus
-        3 red tests for check states · 2m ago
-Next    2.3 Step 3: Commit
-
-✓ Task 1: Forge interface                   2/2
-▸ Task 2: GitHub parsers                    1/3
-  ✓ Step 1: Failing tests
-  ▸ Step 2: Implement rollupStatus
-  ○ Step 3: Commit
-○ Task 3: Forge detection                   0/2
-
-Recent
-  2m doing   2.2 3 red tests for check states
-  9m done    2.1 Step 1: Failing tests
-```
+![Claude works through a plan while the pane shows the current item, the next one, the plan's tasks and the last reports](docs/pane.png)
 
 ## Features
 
@@ -52,13 +34,17 @@ ln -s "$PWD/claude-code-mods/plan-progress" ~/.claude/skills/plan-progress
 
 ## The pane
 
-| Part   | Meaning                                                                                   |
-| ------ | ----------------------------------------------------------------------------------------- |
-| Header | Plan title (its first `#` heading, or the file name) and checked items out of all items   |
-| Now    | The item Claude reported as `doing`, its note and how long ago. `Blocked` when stuck      |
-| Next   | The open item after it. Without a report, the first open item                             |
-| Groups | One row per heading with its count. Only the active group shows its items                 |
-| Recent | The last three reports, one row per item                                                  |
+| Part   | Meaning                                                                                 |
+| ------ | --------------------------------------------------------------------------------------- |
+| Header | Plan title (its first `#` heading, or the file name) and checked items out of all items |
+| Now    | The item Claude reported as `doing`, how long ago and its note. `Blocked` when stuck    |
+| Next   | The open item after it. Without a report, the first open item                           |
+| Groups | One row per heading with its count. Only the active group shows its items               |
+| Recent | The last reports besides the current item, one row per item, with a status pill         |
+
+When every box is ticked, the bar and the header turn to the theme's success color.
+
+![A finished plan: all three tasks ticked and the header says complete](docs/complete.png)
 
 Items are numbered `group.item` (`2.1`), or just `1`, `2`, `3` in a plan with a single group. Claude uses these refs, and so can you when talking about the plan.
 
@@ -74,12 +60,12 @@ Claude Code docks a pane opened on its own only in a terminal of 144 columns or 
 
 Claude sees it as `mcp__plan-progress__report`:
 
-| Field    | Meaning                                                                    |
-| -------- | -------------------------------------------------------------------------- |
-| `plan`   | Path of the plan file. Only on the first call, or to switch plans          |
-| `item`   | A ref like `2.1`, a `group / item` pair, or part of the item's text        |
-| `status` | `doing`, `done` or `blocked`                                               |
-| `note`   | Optional, a few words on what is happening                                 |
+| Field    | Meaning                                                             |
+| -------- | ------------------------------------------------------------------- |
+| `plan`   | Path of the plan file. Only on the first call, or to switch plans   |
+| `item`   | A ref like `2.1`, a `group / item` pair, or part of the item's text |
+| `status` | `doing`, `done` or `blocked`                                        |
+| `note`   | Optional, a few words on what is happening                          |
 
 It answers in one line, such as `ok, 4/9 done - after this: 2.3 Step 3: Commit`. An item that matches several checkboxes is refused with the candidates listed, so no wrong box gets ticked. A heading as `item` covers all its checkboxes.
 
