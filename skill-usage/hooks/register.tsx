@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Source, Usage } from '../types'
 import { initialAttribution, sourceOf, typedCommandOf, typedSkillOf } from './attribution'
-import { bandLayout, columnWidths, percent, thousands } from './band'
+import { bandLayout, columnWidths, thousands } from './band'
 import { parseUsage, serializeUsage, withCount, withInvocation } from './usage'
 import type { Counter } from './usage'
 
@@ -115,7 +115,6 @@ export const register: Register = on => {
     if (e.props.hasSurvey || usage === null || !(await read($, isOpen))) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const isTerminal = e.surface === 'terminal'
     const { width, nameWidth, barWidth, rows, hiddenCount } = bandLayout(
       usage,
       e.props.bodyColumns,
@@ -192,20 +191,13 @@ export const register: Register = on => {
             <Box width={columnWidths.total} justifyContent="flex-end">
               <Text bold>{thousands(row.total)}</Text>
             </Box>
-            {isTerminal ? (
-              <Box width={barWidth}>
-                <Text wrap="truncate">
-                  <Text color="permission">{row.bar.you}</Text>
-                  <Text color="claude">{row.bar.claude}</Text>
-                  <Text color="subtle">{row.bar.track}</Text>
-                </Text>
-              </Box>
-            ) : (
-              <Box width={barWidth} height={1}>
-                <Box width={percent(row.shares.you)} backgroundColor="permission" />
-                <Box width={percent(row.shares.claude)} backgroundColor="claude" />
-              </Box>
-            )}
+            <Box width={barWidth}>
+              <Text wrap="truncate">
+                <Text color="permission">{row.bar.you}</Text>
+                <Text color="claude">{row.bar.claude}</Text>
+                <Text color="subtle">{row.bar.track}</Text>
+              </Text>
+            </Box>
             <Box width={columnWidths.rate} justifyContent="flex-end">
               <Text dimColor>{row.rate}</Text>
             </Box>
