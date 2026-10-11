@@ -7,6 +7,11 @@ export interface StackedBar {
   track: string
 }
 
+export interface BarShares {
+  you: number
+  claude: number
+}
+
 export interface BandRow {
   rank: number
   name: string
@@ -14,6 +19,7 @@ export interface BandRow {
   claude: number
   total: number
   bar: StackedBar
+  shares: BarShares
   rate: string
   lastUsed: string
 }
@@ -61,6 +67,10 @@ export function perHundred(count: number, prompts: number): string {
   return prompts > 0 ? ((count / prompts) * 100).toFixed(1) : '-'
 }
 
+export function percent(share: number): string {
+  return `${String(Math.round(Math.max(0, Math.min(1, share)) * 100))}%`
+}
+
 export function stackedBar(user: number, claude: number, max: number, width: number): StackedBar {
   const scale = max > 0 ? width / max : 0
   const youCells = Math.round(user * scale)
@@ -94,6 +104,7 @@ export function bandLayout(usage: Usage, bodyColumns: number, maxRows: number, n
     claude: skill.claude,
     total: skill.total,
     bar: stackedBar(skill.user, skill.claude, max, barWidth),
+    shares: { you: skill.user / max, claude: skill.claude / max },
     rate: perHundred(skill.total, usage.prompts),
     lastUsed: relativeTime(skill.lastUsed, now),
   }))

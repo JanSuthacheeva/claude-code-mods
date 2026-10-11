@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { bandLayout, perHundred, relativeTime, stackedBar, thousands } from './band'
+import { bandLayout, perHundred, percent, relativeTime, stackedBar, thousands } from './band'
 import { emptyUsage, withInvocation } from './usage'
 
 const now = Date.parse('2026-10-10T08:00:00.000Z')
@@ -55,4 +55,10 @@ test('shows as many skills as the rows allow and counts the rest', () => {
     [3, 'c'],
   ])
   expect(layout.hiddenCount).toBe(2)
+})
+
+test('gives each bar its shares of the longest bar as percentages', () => {
+  expect(percent(0.25)).toBe('25%')
+  expect(percent(1.5)).toBe('100%')
+  expect(percent(-1)).toBe('0%')
 })
