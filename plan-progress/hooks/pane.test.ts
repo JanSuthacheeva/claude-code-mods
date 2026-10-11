@@ -42,6 +42,23 @@ test('shows the reported item as Now with its note, age and the item after it', 
   expect(model.groups[1]?.items?.map(item => item.state)).toEqual(['done', 'active', 'open'])
 })
 
+test('lists finished reports under Recent by item, without the current one', () => {
+  let progress = withReport(emptyProgress(plan), {
+    ref: '2.1',
+    text: 'Step 1: Failing tests',
+    status: 'done',
+    note: 'kept the old fixture',
+    at: 0,
+  })
+  progress = withReport(progress, { ref: '2.2', text: 'x', status: 'doing', note: null, at: minute })
+
+  const model = paneModel(plan, outline, structuredClone(progress), 2 * minute, 40)
+
+  expect(model.recent.map(row => `${row.age} ${row.status} ${row.ref} ${row.text}`)).toEqual([
+    '2m done 2.1 Step 1: Failing tests',
+  ])
+})
+
 test('marks a blocked item and its group', () => {
   const progress = withReport(emptyProgress(plan), { ref: '3.1', text: 'x', status: 'blocked', note: null, at: 0 })
 

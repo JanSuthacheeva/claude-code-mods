@@ -114,7 +114,8 @@ test('opens the pane on the first report and draws progress on every surface', a
     const pane = await mountPane($, surface)
     expect(await pane.find({ type: 'Text', text: /^1\/3$/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /^Now$/ })).toBeDefined()
-    expect(await pane.find({ type: 'Text', text: /^two tests red · just now$/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /^two tests red$/ })).toBeDefined()
+    expect(await pane.find({ type: 'Text', text: /^now$/ })).toBeDefined()
     expect(await pane.find({ type: 'Text', text: /T3. Connect payload/ })).toBeDefined()
     await pane.unmount()
   }
@@ -149,6 +150,18 @@ test('the command toggles the pane, tracks a file and stops tracking', async ($,
   const pane = await mountPane($, 'terminal')
   expect(await pane.find({ type: 'Text', text: /No plan tracked in this project/ })).toBeDefined()
   await pane.unmount()
+})
+
+test('a plan reported after stop opens the pane again', async ($, on) => {
+  const host = installHost(on)
+  await start($)
+  await $.command.run(typed('docs/plans/billing.md'))
+
+  await $.command.run(typed('stop'))
+  expect(host.panes).toHaveLength(0)
+  await $.tool.call({ tool, plan: planPath, item: '2', status: 'doing' })
+
+  expect(host.panes.map(pane => pane.id)).toEqual(['plan-progress'])
 })
 
 test('shows a missing plan file instead of failing', async ($, on) => {

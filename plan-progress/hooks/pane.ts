@@ -72,6 +72,10 @@ function liveCurrent(outline: Outline, current: Report | null): Report | null {
   return group !== undefined && group.items.some(one => !one.isDone) ? current : null
 }
 
+function isSameReport(report: Report, other: Report | null): boolean {
+  return other !== null && report.ref === other.ref && report.at === other.at
+}
+
 function itemState(item: PlanItem, current: Report | null): ItemState {
   if (item.isDone) return 'done'
   if (current?.ref !== item.ref) return 'open'
@@ -140,12 +144,14 @@ export function paneModel(
     focus,
     next,
     groups,
-    recent: progress.recent.map(report => ({
-      key: `${report.ref}-${String(report.at)}`,
-      age: relativeAge(report.at, now),
-      status: report.status,
-      ref: report.ref,
-      text: report.note ?? report.text,
-    })),
+    recent: progress.recent
+      .filter(report => report !== current)
+      .map(report => ({
+        key: `${report.ref}-${String(report.at)}`,
+        age: relativeAge(report.at, now),
+        status: report.status,
+        ref: report.ref,
+        text: report.text,
+      })),
   }
 }

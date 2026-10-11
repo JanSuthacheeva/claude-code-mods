@@ -54,3 +54,9 @@ test('names the item after the one being worked on', () => {
   expect(summaryLine(outline, reportOf('2', 'doing', 0))).toBe('ok, 1/3 done - after this: 3 T3. Connect payload')
   expect(summaryLine(outline, reportOf('3', 'blocked', 0))).toBe('ok, 1/3 done - after this: 2 T2. Back office lists')
 })
+
+test('says when the item being worked on is the last open one', () => {
+  const outline = parseOutline('- [x] one\n- [ ] two')
+
+  expect(summaryLine(outline, reportOf('2', 'doing', 0))).toBe('ok, 1/2 done - this is the last open item')
+})

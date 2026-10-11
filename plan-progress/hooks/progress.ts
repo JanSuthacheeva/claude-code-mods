@@ -48,5 +48,8 @@ export function summaryLine(outline: Outline, current: Report | null): string {
   )
   const label = isWorking ? 'after this' : 'next'
   if (next !== undefined) return `ok, ${String(done)}/${String(total)} done - ${label}: ${next.ref} ${next.text}`
-  return done === total ? `ok, all ${String(total)} done - plan complete` : `ok, ${String(done)}/${String(total)} done`
+  if (done === total) return `ok, all ${String(total)} done - plan complete`
+  return isWorking
+    ? `ok, ${String(done)}/${String(total)} done - this is the last open item`
+    : `ok, ${String(done)}/${String(total)} done`
 }

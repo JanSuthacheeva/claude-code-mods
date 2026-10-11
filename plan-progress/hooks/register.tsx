@@ -33,7 +33,7 @@ const now = atom({ plugin: 'plan-progress', key: 'now' } as const, 0)
 
 const toolDescription = [
   'Report progress on the markdown plan you are working through, shown to the user in the plan-progress pane.',
-  "Call with status 'doing' when you start a checkbox item, 'done' when it is finished, 'blocked' when you are stuck.",
+  "Call with status 'doing' right before you start each checkbox item, 'done' as soon as it is finished, 'blocked' when you are stuck.",
   "'done' ticks the checkbox in the plan file for you; do not edit checkboxes yourself.",
   'Pass plan on the first call. The result says what is next.',
 ].join(' ')
@@ -299,20 +299,18 @@ export const register: Register = on => {
                   {model.focus.label}
                 </Text>
               </Box>
-              <Text wrap="truncate-end">
-                <Text dimColor>{model.focus.ref}</Text> {model.focus.text}
-              </Text>
+              <Box flexGrow={1} flexShrink={1}>
+                <Text wrap="truncate-end">
+                  <Text dimColor>{model.focus.ref}</Text> {model.focus.text}
+                </Text>
+              </Box>
+              {model.focus.age !== null && <Text dimColor>{model.focus.age}</Text>}
             </Box>
-            {(model.focus.note !== null || model.focus.age !== null) && (
+            {model.focus.note !== null && (
               <Box gap={1}>
                 <Box width={7} flexShrink={0} />
                 <Text dimColor wrap="truncate-end">
-                  {[
-                    model.focus.note,
-                    model.focus.age === null ? null : model.focus.age === 'now' ? 'just now' : `${model.focus.age} ago`,
-                  ]
-                    .filter(part => part !== null)
-                    .join(' · ')}
+                  {model.focus.note}
                 </Text>
               </Box>
             )}
