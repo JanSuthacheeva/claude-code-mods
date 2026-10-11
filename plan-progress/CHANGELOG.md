@@ -7,6 +7,8 @@ All notable changes to plan-progress are listed here. The format follows [Keep a
 ### Fixed
 
 - `/plan-progress @file` tracks the mentioned file instead of reporting it as not found.
+- The report tool names the open item after the reported one as next, like the pane, instead of pointing back at a blocked item.
+- Group names, item texts, Next and Recent draw in the theme's text color, so a theme whose dim color matches the pane background no longer hides them. Only refs, counts, ages and notes stay dim.
 
 ## [0.1.0] - 2026-10-11
 

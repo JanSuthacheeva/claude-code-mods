@@ -164,7 +164,7 @@ const icons: Record<ItemState, { glyph: string; color: string }> = {
   done: { glyph: '✓', color: 'success' },
   active: { glyph: '▸', color: 'claude' },
   blocked: { glyph: '!', color: 'warning' },
-  open: { glyph: '○', color: 'inactive' },
+  open: { glyph: '○', color: 'text' },
 }
 
 const panePadding = 1
@@ -240,7 +240,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" gap={1} paddingX={panePadding}>
           <Text bold>No plan tracked in this project</Text>
-          <Text dimColor>
+          <Text>
             Claude starts tracking when it works through a plan with checkboxes, or run /plan-progress &lt;file&gt;.
           </Text>
         </Box>
@@ -251,7 +251,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" gap={1} paddingX={panePadding}>
           <Text color="warning">{error ?? 'Reading the plan...'}</Text>
-          <Text dimColor>Run /plan-progress &lt;file&gt; to track another plan, or /plan-progress stop.</Text>
+          <Text>Run /plan-progress &lt;file&gt; to track another plan, or /plan-progress stop.</Text>
         </Box>
       )
     }
@@ -264,7 +264,7 @@ export const register: Register = on => {
           <Text bold wrap="truncate-end">
             {model.title}
           </Text>
-          <Text dimColor>No checkbox items in {fileName(progress.plan)}. Add "- [ ]" items to track progress.</Text>
+          <Text>No checkbox items in {fileName(progress.plan)}. Add "- [ ]" items to track progress.</Text>
         </Box>
       )
     }
@@ -320,12 +320,10 @@ export const register: Register = on => {
             {model.next !== null && (
               <Box gap={1}>
                 <Box width={7} flexShrink={0}>
-                  <Text dimColor bold>
-                    Next
-                  </Text>
+                  <Text bold>Next</Text>
                 </Box>
-                <Text dimColor wrap="truncate-end">
-                  {model.next.ref} {model.next.text}
+                <Text wrap="truncate-end">
+                  <Text dimColor>{model.next.ref}</Text> {model.next.text}
                 </Text>
               </Box>
             )}
@@ -339,11 +337,7 @@ export const register: Register = on => {
                 <Box gap={1}>
                   <Text color={icons[group.state].color}>{icons[group.state].glyph}</Text>
                   <Box flexGrow={1} flexShrink={1}>
-                    <Text
-                      wrap="truncate-end"
-                      bold={group.state === 'active' || group.state === 'blocked'}
-                      dimColor={group.state === 'done' || group.state === 'open'}
-                    >
+                    <Text wrap="truncate-end" bold={group.state === 'active' || group.state === 'blocked'}>
                       {group.title}
                     </Text>
                   </Box>
@@ -355,9 +349,7 @@ export const register: Register = on => {
               {group.items?.map(item => (
                 <Box key={item.ref} gap={1} paddingLeft={(group.title === null ? 0 : 2) + item.depth * 2}>
                   <Text color={icons[item.state].color}>{icons[item.state].glyph}</Text>
-                  <Text wrap="truncate-end" dimColor={item.state === 'done' || item.state === 'open'}>
-                    {item.text}
-                  </Text>
+                  <Text wrap="truncate-end">{item.text}</Text>
                 </Box>
               ))}
             </Box>
@@ -366,7 +358,7 @@ export const register: Register = on => {
 
         {model.recent.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
-            <Text dimColor>Recent</Text>
+            <Text bold>Recent</Text>
             <Box flexDirection="column">
               {model.recent.map(row => (
                 <Box key={row.key} gap={1}>
@@ -374,8 +366,8 @@ export const register: Register = on => {
                     <Text color={statusColors[row.status]}>{row.status}</Text>
                   </Box>
                   <Box flexGrow={1} flexShrink={1}>
-                    <Text dimColor wrap="truncate-end">
-                      {row.ref} {row.text}
+                    <Text wrap="truncate-end">
+                      <Text dimColor>{row.ref}</Text> {row.text}
                     </Text>
                   </Box>
                   <Text dimColor>{row.age}</Text>

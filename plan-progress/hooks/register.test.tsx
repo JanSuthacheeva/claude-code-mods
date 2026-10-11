@@ -2,7 +2,7 @@ import type { On, UiPane } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
-import { flatPlan } from './fixtures'
+import { flatPlan, superpowersPlan } from './fixtures'
 
 const planPath = '/repo/docs/plans/billing.md'
 const tool = 'mcp__plan-progress__report'
@@ -119,6 +119,30 @@ test('opens the pane on the first report and draws progress on every surface', a
     expect(await pane.find({ type: 'Text', text: /T3. Connect payload/ })).toBeDefined()
     await pane.unmount()
   }
+})
+
+test('draws plan content at full strength, so a theme cannot hide it', async ($, on) => {
+  installHost(on, { [planPath]: superpowersPlan })
+  await start($)
+  await $.tool.call({ tool, plan: planPath, item: '2.1', status: 'done' })
+  await $.tool.call({ tool, item: '2.2', status: 'doing' })
+
+  const pane = await mountPane($, 'terminal')
+  for (const text of [
+    /^Task 1: Forge interface$/,
+    /^Task 3: Forge detection$/,
+    /^Step 1: Failing tests$/,
+    /^Step 3: Commit$/,
+    /^2\.3 Step 3: Commit$/,
+    /^2\.1 Step 1: Failing tests$/,
+    /^Next$/,
+    /^Recent$/,
+    /^○$/,
+  ]) {
+    const props = (await pane.find({ type: 'Text', text }))?.props
+    expect([String(text), props?.dimColor === true, props?.color === 'inactive']).toEqual([String(text), false, false])
+  }
+  await pane.unmount()
 })
 
 test('shows finished reports under Recent with their status', async ($, on) => {
