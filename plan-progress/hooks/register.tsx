@@ -233,6 +233,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: paneId }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
+    const isTerminal = e.surface === 'terminal'
     const { progress, outline, error } = await read($, view)
     const time = await read($, now)
 
@@ -289,10 +290,17 @@ export const register: Register = on => {
             </Text>
           )}
         </Box>
-        <Text wrap="truncate-end">
-          <Text color={barColor}>{'━'.repeat(model.bar.filled)}</Text>
-          <Text color="inactive">{'━'.repeat(model.bar.empty)}</Text>
-        </Text>
+        {isTerminal ? (
+          <Text wrap="truncate-end">
+            <Text color={barColor}>{'━'.repeat(model.bar.filled)}</Text>
+            <Text color="inactive">{'━'.repeat(model.bar.empty)}</Text>
+          </Text>
+        ) : (
+          <Box height={1}>
+            <Box width={`${String(Math.round((model.done / model.total) * 100))}%`} backgroundColor={barColor} />
+            <Box flexGrow={1} backgroundColor="inactive" />
+          </Box>
+        )}
 
         {model.focus !== null && (
           <Box flexDirection="column" marginTop={1}>
