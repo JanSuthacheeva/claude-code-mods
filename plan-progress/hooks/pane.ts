@@ -76,16 +76,19 @@ function isSameReport(report: Report, other: Report | null): boolean {
   return other !== null && report.ref === other.ref && report.at === other.at
 }
 
-function itemState(item: PlanItem, current: Report | null): ItemState {
+function itemState(item: PlanItem, current: Report | null, blockedRefs: Set<string>): ItemState {
   if (item.isDone) return 'done'
-  if (current?.ref !== item.ref) return 'open'
-  return current.status === 'blocked' ? 'blocked' : 'active'
+  if (current?.ref === item.ref) return current.status === 'blocked' ? 'blocked' : 'active'
+  return blockedRefs.has(item.ref) ? 'blocked' : 'open'
 }
 
-function groupState(group: PlanGroup, isActive: boolean, current: Report | null): ItemState {
+function groupState(group: PlanGroup, isActive: boolean, current: Report | null, blockedRefs: Set<string>): ItemState {
   if (group.items.every(item => item.isDone)) return 'done'
-  if (!isActive) return 'open'
-  return current !== null && isInGroup(group, current.ref) && current.status === 'blocked' ? 'blocked' : 'active'
+  const isCurrentHere = current !== null && isInGroup(group, current.ref)
+  if (isActive && isCurrentHere) return current.status === 'blocked' ? 'blocked' : 'active'
+  const hasBlocked = blockedRefs.has(group.ref) || group.items.some(item => !item.isDone && blockedRefs.has(item.ref))
+  if (hasBlocked) return 'blocked'
+  return isActive ? 'active' : 'open'
 }
 
 export function paneModel(
@@ -104,6 +107,7 @@ export function paneModel(
     (current === null ? undefined : outline.groups.find(group => isInGroup(group, current.ref))) ??
     outline.groups.find(group => group.items.some(item => !item.isDone))
   const isFlat = outline.groups.length === 1
+  const blockedRefs = new Set(progress.recent.filter(report => report.status === 'blocked').map(report => report.ref))
 
   const groups = outline.groups.map(group => {
     const isActive = group === activeGroup
@@ -112,8 +116,11 @@ export function paneModel(
       title: group.title,
       done: group.items.filter(item => item.isDone).length,
       total: group.items.length,
-      state: groupState(group, isActive, current),
-      items: isActive || isFlat ? group.items.map(item => ({ ...item, state: itemState(item, current) })) : null,
+      state: groupState(group, isActive, current, blockedRefs),
+      items:
+        isActive || isFlat
+          ? group.items.map(item => ({ ...item, state: itemState(item, current, blockedRefs) }))
+          : null,
     }
   })
 

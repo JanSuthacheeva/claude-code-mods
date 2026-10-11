@@ -167,13 +167,8 @@ const icons: Record<ItemState, { glyph: string; color: string }> = {
   open: { glyph: '○', color: 'inactive' },
 }
 
-const pillWidth = 9
+const panePadding = 1
 const pillCaps = { left: '\ue0b6', right: '\ue0b4' }
-
-function pillLabel(status: ReportStatus, width: number): string {
-  const left = Math.floor((width - status.length) / 2)
-  return ' '.repeat(left) + status + ' '.repeat(width - status.length - left)
-}
 
 const statusColors: Record<ReportStatus, string> = { doing: 'claude', done: 'success', blocked: 'warning' }
 
@@ -245,7 +240,7 @@ export const register: Register = on => {
 
     if (progress === null) {
       return (
-        <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column" gap={1} paddingX={panePadding}>
           <Text bold>No plan tracked in this project</Text>
           <Text dimColor>
             Claude starts tracking when it works through a plan with checkboxes, or run /plan-progress &lt;file&gt;.
@@ -256,18 +251,18 @@ export const register: Register = on => {
 
     if (error !== null || outline === null) {
       return (
-        <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column" gap={1} paddingX={panePadding}>
           <Text color="warning">{error ?? 'Reading the plan...'}</Text>
           <Text dimColor>Run /plan-progress &lt;file&gt; to track another plan, or /plan-progress stop.</Text>
         </Box>
       )
     }
 
-    const model: PaneModel = paneModel(progress.plan, outline, progress, time, e.props.bodyColumns)
+    const model: PaneModel = paneModel(progress.plan, outline, progress, time, e.props.bodyColumns - 2 * panePadding)
 
     if (model.total === 0) {
       return (
-        <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column" gap={1} paddingX={panePadding}>
           <Text bold wrap="truncate-end">
             {model.title}
           </Text>
@@ -276,11 +271,12 @@ export const register: Register = on => {
       )
     }
 
+    const pillColumnWidth = Math.max(0, ...model.recent.map(row => row.status.length)) + (isTerminal ? 4 : 2)
     const barColor = model.isComplete ? 'success' : 'claude'
     const focusColor = model.focus?.label === 'Blocked' ? 'warning' : model.focus?.label === 'Now' ? 'claude' : 'subtle'
 
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" paddingX={panePadding}>
         <Box gap={2}>
           <Box flexGrow={1} flexShrink={1}>
             <Text bold wrap="truncate-end">
@@ -373,31 +369,27 @@ export const register: Register = on => {
         {model.recent.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
             <Text dimColor>Recent</Text>
-            {model.recent.map(row => (
-              <Box key={row.key} gap={1}>
-                <Box width={4} flexShrink={0} justifyContent="flex-end">
+            <Box flexDirection="column" rowGap={1} marginTop={1}>
+              {model.recent.map(row => (
+                <Box key={row.key} gap={1}>
+                  <Box width={pillColumnWidth} flexShrink={0}>
+                    <Text>
+                      {isTerminal && <Text color={statusColors[row.status]}>{pillCaps.left}</Text>}
+                      <Text backgroundColor={statusColors[row.status]} color="inverseText">
+                        {` ${row.status} `}
+                      </Text>
+                      {isTerminal && <Text color={statusColors[row.status]}>{pillCaps.right}</Text>}
+                    </Text>
+                  </Box>
+                  <Box flexGrow={1} flexShrink={1}>
+                    <Text dimColor wrap="truncate-end">
+                      {row.ref} {row.text}
+                    </Text>
+                  </Box>
                   <Text dimColor>{row.age}</Text>
                 </Box>
-                <Box width={pillWidth} flexShrink={0}>
-                  {isTerminal ? (
-                    <Text>
-                      <Text color={statusColors[row.status]}>{pillCaps.left}</Text>
-                      <Text backgroundColor={statusColors[row.status]} color="inverseText">
-                        {pillLabel(row.status, pillWidth - 2)}
-                      </Text>
-                      <Text color={statusColors[row.status]}>{pillCaps.right}</Text>
-                    </Text>
-                  ) : (
-                    <Text backgroundColor={statusColors[row.status]} color="inverseText">
-                      {pillLabel(row.status, pillWidth)}
-                    </Text>
-                  )}
-                </Box>
-                <Text dimColor wrap="truncate-end">
-                  {row.ref} {row.text}
-                </Text>
-              </Box>
-            ))}
+              ))}
+            </Box>
           </Box>
         )}
       </Box>

@@ -68,6 +68,15 @@ test('marks a blocked item and its group', () => {
   expect(model.groups[2]?.state).toBe('blocked')
 })
 
+test('keeps a blocked item marked after Claude moves on', () => {
+  let progress = withReport(emptyProgress(plan), { ref: '3.1', text: 'x', status: 'blocked', note: null, at: 0 })
+  progress = withReport(progress, { ref: '2.2', text: 'y', status: 'doing', note: null, at: minute })
+
+  const model = paneModel(plan, outline, progress, minute, 40)
+
+  expect(model.groups.map(group => group.state)).toEqual(['done', 'active', 'blocked'])
+})
+
 test('drops a current item that was ticked in the file meanwhile', () => {
   const progress = withReport(emptyProgress(plan), { ref: '2.1', text: 'x', status: 'doing', note: null, at: 0 })
 

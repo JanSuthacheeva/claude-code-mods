@@ -128,12 +128,12 @@ test('shows finished reports under Recent with a status pill', async ($, on) => 
   await $.tool.call({ tool, plan: planPath, item: '2', status: 'done' })
 
   const terminal = await mountPane($, 'terminal')
-  expect(await terminal.find({ type: 'Text', text: /^ done {2}$/ })).toBeDefined()
+  expect(await terminal.find({ type: 'Text', text: ' done ' })).toBeDefined()
   expect(await terminal.find({ type: 'Text', text: '\ue0b6' })).toBeDefined()
   await terminal.unmount()
 
   const desktop = await mountPane($, 'desktop')
-  expect(await desktop.find({ type: 'Text', text: /^ {2}done {3}$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: ' done ' })).toBeDefined()
   await desktop.unmount()
 })
 
