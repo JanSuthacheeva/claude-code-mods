@@ -57,6 +57,15 @@ test('names the item after the one being worked on', () => {
   expect(summaryLine(outline, reportOf('3', 'blocked', 0))).toBe('ok, 1/3 done - after this: 2 T2. Back office lists')
 })
 
+test('names the open item after the reported one, before going back to skipped ones', () => {
+  const outline = parseOutline('## A\n- [x] a1\n- [ ] a2\n## B\n- [x] b1\n- [ ] b2\n- [ ] b3')
+
+  expect(summaryLine(outline, reportOf('2.2', 'doing', 0))).toBe('ok, 2/5 done - after this: 2.3 b3')
+  expect(summaryLine(outline, reportOf('2.1', 'done', 0))).toBe('ok, 2/5 done - next: 2.2 b2')
+  expect(summaryLine(outline, reportOf('2.3', 'blocked', 0))).toBe('ok, 2/5 done - after this: 1.2 a2')
+  expect(summaryLine(outline, reportOf('1', 'doing', 0))).toBe('ok, 2/5 done - after this: 2.2 b2')
+})
+
 test('says when the item being worked on is the last open one', () => {
   const outline = parseOutline('- [x] one\n- [ ] two')
 

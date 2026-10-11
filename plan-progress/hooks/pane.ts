@@ -1,6 +1,6 @@
 import type { Outline, PlanGroup, PlanItem, Progress, Report, ReportStatus } from '../types'
 import { allItems, counts } from './outline'
-import { fileName, recentRows } from './progress'
+import { fileName, nextItem, recentRows } from './progress'
 
 export type ItemState = 'done' | 'active' | 'blocked' | 'open'
 
@@ -124,8 +124,7 @@ export function paneModel(
     }
   })
 
-  const currentIndex = current === null ? -1 : items.findIndex(item => item.ref === current.ref)
-  const next = current === null ? null : (items.find((item, index) => index > currentIndex && !item.isDone) ?? null)
+  const next = current === null ? null : nextItem(outline, current)
   const focus: Focus | null =
     current !== null
       ? {

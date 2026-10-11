@@ -1,4 +1,4 @@
-import type { Outline, Progress, Report } from '../types'
+import type { Outline, PlanItem, Progress, Report } from '../types'
 import type { Target } from './matching'
 import { allItems, counts } from './outline'
 
@@ -39,16 +39,25 @@ export function withReport(progress: Progress, report: Report): Progress {
   return { ...progress, current, recent }
 }
 
+function isCoveredBy(item: PlanItem, ref: string): boolean {
+  return item.ref === ref || item.ref.startsWith(`${ref}.`)
+}
+
+export function nextItem(outline: Outline, after: Report | null): PlanItem | null {
+  const items = allItems(outline)
+  const isOpen = (item: PlanItem): boolean => !item.isDone && (after === null || !isCoveredBy(item, after.ref))
+  const anchor = after === null ? -1 : items.findLastIndex(item => isCoveredBy(item, after.ref))
+  return items.slice(anchor + 1).find(isOpen) ?? items.slice(0, anchor + 1).find(isOpen) ?? null
+}
+
 export function summaryLine(outline: Outline, current: Report | null): string {
   const { done, total } = counts(outline)
   if (total === 0) return 'ok, but the plan has no checkbox items yet'
 
   const isWorking = current !== null && current.status !== 'done'
-  const next = allItems(outline).find(
-    item => !item.isDone && !(isWorking && (item.ref === current.ref || item.ref.startsWith(`${current.ref}.`))),
-  )
+  const next = nextItem(outline, current)
   const label = isWorking ? 'after this' : 'next'
-  if (next !== undefined) return `ok, ${String(done)}/${String(total)} done - ${label}: ${next.ref} ${next.text}`
+  if (next !== null) return `ok, ${String(done)}/${String(total)} done - ${label}: ${next.ref} ${next.text}`
   if (done === total) return `ok, all ${String(total)} done - plan complete`
   return isWorking
     ? `ok, ${String(done)}/${String(total)} done - this is the last open item`
