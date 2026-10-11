@@ -57,7 +57,7 @@ Claude Code docks a pane opened on its own only in a terminal of 144 columns or 
 ## Commands
 
 - `/plan-progress` shows or hides the pane.
-- `/plan-progress <file>` tracks that plan in this project and shows the pane.
+- `/plan-progress <file>` tracks that plan in this project and shows the pane. An `@` file mention works too.
 - `/plan-progress stop` stops tracking.
 
 ## The report tool

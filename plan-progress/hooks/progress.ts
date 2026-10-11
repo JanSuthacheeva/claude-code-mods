@@ -10,7 +10,7 @@ export function emptyProgress(plan: string): Progress {
 }
 
 export function absolutePath(cwd: string, path: string): string {
-  const trimmed = path.trim()
+  const trimmed = path.trim().replace(/^@/, '')
   if (trimmed.startsWith('/') || /^[A-Za-z]:[\\/]/.test(trimmed)) return trimmed
   return `${cwd.replace(/[\\/]$/, '')}/${trimmed.replace(/^\.\//, '')}`
 }

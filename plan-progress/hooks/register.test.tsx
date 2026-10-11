@@ -163,6 +163,18 @@ test('the command toggles the pane, tracks a file and stops tracking', async ($,
   await pane.unmount()
 })
 
+test('tracks a plan passed as an @ file mention', async ($, on) => {
+  installHost(on)
+  await start($)
+
+  await $.command.run(typed('@docs/plans/billing.md'))
+  const pane = await mountPane($, 'terminal')
+
+  expect(await pane.find({ type: 'Text', text: /Plan file not found/ })).toBeUndefined()
+  expect(await pane.find({ type: 'Text', text: /^1\/3$/ })).toBeDefined()
+  await pane.unmount()
+})
+
 test('a plan reported after stop opens the pane again', async ($, on) => {
   const host = installHost(on)
   await start($)

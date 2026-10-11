@@ -2,6 +2,12 @@
 
 All notable changes to plan-progress are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- `/plan-progress @file` tracks the mentioned file instead of reporting it as not found.
+
 ## [0.1.0] - 2026-10-11
 
 ### Added

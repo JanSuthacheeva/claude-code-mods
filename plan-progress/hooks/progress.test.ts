@@ -13,6 +13,8 @@ test('resolves plan paths against the working directory', () => {
   expect(absolutePath('/repo', 'docs/plans/x.md')).toBe('/repo/docs/plans/x.md')
   expect(absolutePath('/repo/', './x.md')).toBe('/repo/x.md')
   expect(absolutePath('/repo', '/abs/x.md')).toBe('/abs/x.md')
+  expect(absolutePath('/repo', '@docs/x.md')).toBe('/repo/docs/x.md')
+  expect(absolutePath('/repo', '@/abs/x.md')).toBe('/abs/x.md')
 })
 
 test('a doing report becomes current, done clears it, recent keeps one row per item', () => {
