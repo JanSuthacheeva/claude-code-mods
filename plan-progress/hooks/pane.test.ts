@@ -52,7 +52,7 @@ test('lists finished reports under Recent by item, without the current one', () 
   })
   progress = withReport(progress, { ref: '2.2', text: 'x', status: 'doing', note: null, at: minute })
 
-  const model = paneModel(plan, outline, structuredClone(progress), 2 * minute, 40)
+  const model = paneModel(plan, outline, JSON.parse(JSON.stringify(progress)) as typeof progress, 2 * minute, 40)
 
   expect(model.recent.map(row => `${row.age} ${row.status} ${row.ref} ${row.text}`)).toEqual([
     '2m done 2.1 Step 1: Failing tests',

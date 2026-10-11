@@ -145,7 +145,7 @@ export function paneModel(
     next,
     groups,
     recent: progress.recent
-      .filter(report => report !== current)
+      .filter(report => !isSameReport(report, current))
       .map(report => ({
         key: `${report.ref}-${String(report.at)}`,
         age: relativeAge(report.at, now),
