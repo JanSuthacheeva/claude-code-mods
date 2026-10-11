@@ -167,6 +167,13 @@ const icons: Record<ItemState, { glyph: string; color: string }> = {
   open: { glyph: '○', color: 'inactive' },
 }
 
+const pillWidth = 9
+
+function pillLabel(status: ReportStatus): string {
+  const left = Math.floor((pillWidth - status.length) / 2)
+  return ' '.repeat(left) + status + ' '.repeat(pillWidth - status.length - left)
+}
+
 const statusColors: Record<ReportStatus, string> = { doing: 'claude', done: 'success', blocked: 'warning' }
 
 // Hooks
@@ -369,8 +376,10 @@ export const register: Register = on => {
                 <Box width={4} flexShrink={0} justifyContent="flex-end">
                   <Text dimColor>{row.age}</Text>
                 </Box>
-                <Box width={7} flexShrink={0}>
-                  <Text color={statusColors[row.status]}>{row.status}</Text>
+                <Box width={pillWidth} flexShrink={0}>
+                  <Text backgroundColor={statusColors[row.status]} color="inverseText">
+                    {pillLabel(row.status)}
+                  </Text>
                 </Box>
                 <Text dimColor wrap="truncate-end">
                   {row.ref} {row.text}
