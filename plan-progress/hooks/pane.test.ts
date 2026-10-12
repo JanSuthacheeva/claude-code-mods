@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { superpowersPlan } from './fixtures'
 import { parseOutline } from './outline'
-import { dockColumns, paneModel, relativeAge } from './pane'
+import { dockColumns, paneModel, relativeAge, terminalColumnsBesideDock } from './pane'
 import { emptyProgress, withReport } from './progress'
 
 const outline = parseOutline(superpowersPlan)
@@ -100,4 +100,8 @@ test('formats ages compactly', () => {
 test('sizes the dock to a third of the terminal, border included', () => {
   expect(dockColumns(210)).toBe(69)
   expect(dockColumns(160)).toBe(52)
+})
+
+test('measures the terminal from the transcript beside the dock plus the dock itself', () => {
+  expect(terminalColumnsBesideDock(140, 69)).toBe(210)
 })

@@ -55,6 +55,10 @@ export function dockColumns(terminalColumns: number): number {
   return Math.max(1, Math.round(terminalColumns * dockShare) - dockBorderColumns)
 }
 
+export function terminalColumnsBesideDock(transcriptColumns: number, bodyColumns: number): number {
+  return transcriptColumns + dockBorderColumns + bodyColumns
+}
+
 const minuteMs = 60_000
 const hourMs = 60 * minuteMs
 const dayMs = 24 * hourMs

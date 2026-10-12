@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { PlanView, Progress, ReportStatus } from '../types'
 import { resolveItem } from './matching'
 import { parseOutline, withTicked } from './outline'
-import { dockColumns, paneModel } from './pane'
+import { dockColumns, paneModel, terminalColumnsBesideDock } from './pane'
 import type { ItemState, PaneModel } from './pane'
 import {
   absolutePath,
@@ -253,7 +253,7 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: paneId }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
     if (e.surface === 'terminal' && e.props.placement === 'dock' && e.viewport !== undefined) {
-      void followTerminalWidth($, e.viewport.columns).catch(() => undefined)
+      void followTerminalWidth($, terminalColumnsBesideDock(e.viewport.columns, e.props.bodyColumns)).catch(() => undefined)
     }
     const { progress, outline, error } = await read($, view)
     const time = await read($, now)
