@@ -10,10 +10,11 @@ const tool = 'mcp__plan-progress__report'
 interface Host {
   files: Map<string, string>
   panes: UiPane[]
+  requestedColumns: (number | undefined)[]
 }
 
 function installHost(on: On, files: Record<string, string> = { [planPath]: flatPlan }): Host {
-  const host: Host = { files: new Map(Object.entries(files)), panes: [] }
+  const host: Host = { files: new Map(Object.entries(files)), panes: [], requestedColumns: [] }
   let modified = 0
 
   mock.clock(on, { now: Date.parse('2026-10-11T09:00:00.000Z') })
@@ -39,6 +40,7 @@ function installHost(on: On, files: Record<string, string> = { [planPath]: flatP
   })
   on('ui.panes', () => ({ value: host.panes }))
   on('ui.open', ($, e) => {
+    host.requestedColumns.push(e.columns)
     if (!host.panes.some(pane => pane.id === e.id)) {
       host.panes.push({ id: e.id, title: e.title ?? e.id, isShown: true, isFocused: false, isPlaced: true })
     }
@@ -220,4 +222,15 @@ test('shows a missing plan file instead of failing', async ($, on) => {
 
   expect(await pane.find({ type: 'Text', text: /Plan file not found: \/repo\/docs\/plans\/gone.md/ })).toBeDefined()
   await pane.unmount()
+})
+
+test('asks for a dock a third of the terminal wide, also when opening unasked later', async ($, on) => {
+  const host = installHost(on)
+  await start($)
+
+  await $.command.run(typed('docs/plans/billing.md'))
+  await $.command.run(typed(''))
+  await $.tool.call({ tool, item: '2', status: 'doing' })
+
+  expect(host.requestedColumns).toEqual([52, 52])
 })

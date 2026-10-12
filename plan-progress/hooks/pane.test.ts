@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { superpowersPlan } from './fixtures'
 import { parseOutline } from './outline'
-import { paneModel, relativeAge } from './pane'
+import { dockColumns, paneModel, relativeAge } from './pane'
 import { emptyProgress, withReport } from './progress'
 
 const outline = parseOutline(superpowersPlan)
@@ -95,4 +95,9 @@ test('formats ages compactly', () => {
   expect(relativeAge(0, 30_000)).toBe('now')
   expect(relativeAge(0, 90 * minute)).toBe('1h')
   expect(relativeAge(0, 49 * 60 * minute)).toBe('2d')
+})
+
+test('sizes the dock to a third of the terminal, border included', () => {
+  expect(dockColumns(210)).toBe(69)
+  expect(dockColumns(160)).toBe(52)
 })

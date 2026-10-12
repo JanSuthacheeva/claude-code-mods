@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { PlanView, Progress, ReportStatus } from '../types'
 import { resolveItem } from './matching'
 import { parseOutline, withTicked } from './outline'
-import { paneModel } from './pane'
+import { dockColumns, paneModel } from './pane'
 import type { ItemState, PaneModel } from './pane'
 import {
   absolutePath,
@@ -23,6 +23,7 @@ const commandName = 'plan-progress'
 const toolName = 'report'
 const pollIntervalMs = 2_000
 const clockIntervalMs = 30_000
+const terminalColumnsKey = 'terminalColumns'
 const statuses: readonly ReportStatus[] = ['doing', 'done', 'blocked']
 
 const emptyView: PlanView = { progress: null, outline: null, error: null }
@@ -114,9 +115,26 @@ async function isPaneOpen($: EngineInterface): Promise<boolean> {
   return (await $.ui.panes()).some(pane => pane.id === paneId)
 }
 
+async function storedTerminalColumns($: EngineInterface): Promise<number | null> {
+  const value = await $.store.get(terminalColumnsKey)
+  return typeof value === 'number' ? value : null
+}
+
+async function openPane($: EngineInterface): Promise<void> {
+  const terminalColumns = await storedTerminalColumns($)
+  const width = terminalColumns === null ? {} : { columns: dockColumns(terminalColumns) }
+  await $.ui.open({ id: paneId, title: paneTitle, ...width })
+}
+
 async function openPaneUnasked($: EngineInterface): Promise<void> {
   if ((await read($, isClosedByPerson)) || (await isPaneOpen($))) return
-  await $.ui.open({ id: paneId, title: paneTitle })
+  await openPane($)
+}
+
+async function followTerminalWidth($: EngineInterface, columns: number): Promise<void> {
+  if ((await storedTerminalColumns($)) === columns) return
+  await $.store.set(terminalColumnsKey, columns)
+  if (await isPaneOpen($)) await openPane($)
 }
 
 // Tool
@@ -202,6 +220,7 @@ export const register: Register = on => {
 
   on('command.run', { command: commandName }, async ($, e) => {
     const argument = e.args.trim()
+    await $.store.set(terminalColumnsKey, e.presentation.columns)
 
     if (argument === 'stop') {
       await saveProgress($, null)
@@ -213,7 +232,7 @@ export const register: Register = on => {
     if (argument !== '') {
       const progress = await trackPlan($, argument)
       await update($, isClosedByPerson, () => false)
-      await $.ui.open({ id: paneId, title: paneTitle })
+      await openPane($)
       return { text: `Tracking ${fileName(progress.plan)}.` }
     }
 
@@ -222,7 +241,7 @@ export const register: Register = on => {
       return { text: 'Plan progress hidden.' }
     }
     await update($, isClosedByPerson, () => false)
-    await $.ui.open({ id: paneId, title: paneTitle })
+    await openPane($)
     return { text: 'Plan progress shown.' }
   }).catch(($, e, next) => next(e))
 
@@ -233,6 +252,9 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: paneId }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
+    if (e.surface === 'terminal' && e.props.placement === 'dock' && e.viewport !== undefined) {
+      void followTerminalWidth($, e.viewport.columns).catch(() => undefined)
+    }
     const { progress, outline, error } = await read($, view)
     const time = await read($, now)
 

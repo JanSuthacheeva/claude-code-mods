@@ -48,6 +48,13 @@ export interface PaneModel {
   recent: RecentRow[]
 }
 
+const dockShare = 1 / 3
+const dockBorderColumns = 1
+
+export function dockColumns(terminalColumns: number): number {
+  return Math.max(1, Math.round(terminalColumns * dockShare) - dockBorderColumns)
+}
+
 const minuteMs = 60_000
 const hourMs = 60 * minuteMs
 const dayMs = 24 * hourMs
