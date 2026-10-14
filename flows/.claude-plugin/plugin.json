@@ -1,0 +1,18 @@
+{
+  "name": "flows",
+  "version": "0.1.0",
+  "description": "Shows every feature flow from the flow CLI in a tabbed board above the prompt: state, phases, tasks, blockers and timeline",
+  "author": {
+    "name": "Jan Suthacheeva",
+    "email": "jan.suthacheeva@gmail.com"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "flowPath": {
+      "type": "string",
+      "title": "flow binary",
+      "description": "Path to the flow binary; the desktop app may not have ~/.cargo/bin on its PATH",
+      "default": "flow"
+    }
+  }
+}
