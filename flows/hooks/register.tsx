@@ -26,6 +26,7 @@ let platform: Platform | null = null
 const pillStart = '\u{E0B6}'
 const pillEnd = '\u{E0B4}'
 const mark = '\u{F0E7}'
+const maxTaskBar = 24
 
 // Board
 
@@ -235,7 +236,7 @@ export const register: Register = (on, options) => {
           </Text>
         </Box>
         <Box gap={1}>
-          {taskBar(card.tasks, Math.max(8, width - 26))}
+          {taskBar(card.tasks, Math.min(maxTaskBar, Math.max(8, width - 26)))}
           <Text dimColor>{card.tasks === null ? 'no tasks yet' : `${String(card.tasks.done)}/${String(card.tasks.total)}`}</Text>
           <Box flexGrow={1} />
           <Text dimColor>{card.age} ago</Text>
