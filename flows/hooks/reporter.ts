@@ -41,7 +41,8 @@ export function reportArgs(observation: Observation): string[] | null {
       return url === null ? null : ['merge-request', url]
     }
     case 'session-end':
-      return observation.reason === 'clear' ? null : ['ended']
+      // A hangup (flow ui stopping, a reboot) leaves the flow unfinished, so it is resumed.
+      return observation.reason === 'prompt_input_exit' ? ['ended'] : null
     case 'heartbeat':
       return ['heartbeat']
   }

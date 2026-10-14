@@ -58,9 +58,11 @@ test('reports a merge request when gh or glab created one', () => {
   expect(reportArgs({ kind: 'command', command: 'ls', stdout: '' })).toBeNull()
 })
 
-test('reports ended unless the session was only cleared, and heartbeats', () => {
+test('reports ended only when the user exits, and heartbeats', () => {
   expect(reportArgs({ kind: 'session-end', reason: 'prompt_input_exit' })).toEqual(['ended'])
   expect(reportArgs({ kind: 'session-end', reason: 'clear' })).toBeNull()
+  expect(reportArgs({ kind: 'session-end', reason: 'other' })).toBeNull()
+  expect(reportArgs({ kind: 'session-end', reason: 'logout' })).toBeNull()
   expect(reportArgs({ kind: 'heartbeat' })).toEqual(['heartbeat'])
 })
 

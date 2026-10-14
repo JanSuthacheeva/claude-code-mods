@@ -81,7 +81,7 @@ A session reports when it has a flow: `FLOW_ID` set when it starts (as `flow sta
 | plan-progress records progress or a block                                                 | the task count, or blocked with the item and note |
 | `gh pr create` or `glab mr create` prints the new URL                                     | the merge request                          |
 | Every 30 seconds                                                                          | a heartbeat, so a crashed worker shows as not responding |
-| The session ends (`/clear` does not count)                                                | ended                                     |
+| You `/exit` the session (a hangup or `/clear` does not count)                             | ended                                     |
 
 Reports reach `flow` in the order they happened. If `flow` cannot take them, a toast says so once and the worker carries on undisturbed.
 
