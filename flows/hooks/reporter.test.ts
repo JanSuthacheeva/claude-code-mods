@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { createdMergeRequest, phaseOfSkill, reportArgs, reportTextLimit, taskCounts, waitingQuestion } from './reporter'
+import { createdMergeRequest, phaseOfSkill, typedSkill, reportArgs, reportTextLimit, taskCounts, waitingQuestion } from './reporter'
 
 test('reports a phase when a phase skill starts, also with a plugin prefix', () => {
   expect(reportArgs({ kind: 'skill', skill: 'design-code' })).toEqual(['phase', 'design'])
@@ -58,4 +58,10 @@ test('reports ended unless the session was only cleared, and heartbeats', () => 
   expect(reportArgs({ kind: 'session-end', reason: 'prompt_input_exit' })).toEqual(['ended'])
   expect(reportArgs({ kind: 'session-end', reason: 'clear' })).toBeNull()
   expect(reportArgs({ kind: 'heartbeat' })).toEqual(['heartbeat'])
+})
+
+test('reads the skill a typed slash command names', () => {
+  expect(typedSkill('/design-code add a separator option')).toBe('design-code')
+  expect(typedSkill('  /review-changes')).toBe('review-changes')
+  expect(typedSkill('please run design-code')).toBeNull()
 })

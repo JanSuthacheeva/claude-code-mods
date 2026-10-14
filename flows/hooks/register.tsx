@@ -6,7 +6,7 @@ import { bandModel, parseBoard } from './board'
 import type { BandModel, CardModel, DetailModel, Pill, Step } from './board'
 import type { Platform } from './browser'
 import { detectPlatform, isWindows, openUrlArgv } from './browser'
-import { reportArgs } from './reporter'
+import { reportArgs, typedSkill } from './reporter'
 import { currentFlow, jumpTo, moveCursor, reconcile, scrollTimeline, start, stepTab, toTop } from './navigation'
 
 const commandName = 'flows'
@@ -253,6 +253,12 @@ export const register: Register = (on, options) => {
     }
     return result
   })
+
+  on('prompt.submit', ($, e, next) => {
+    const skill = typedSkill(e.text)
+    if (skill !== null) observe($, { kind: 'skill', skill })
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('skill.prompt', ($, e, next) => {
     observe($, { kind: 'skill', skill: e.skill })

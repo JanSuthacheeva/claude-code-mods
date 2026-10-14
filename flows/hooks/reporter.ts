@@ -63,6 +63,11 @@ export function waitingQuestion(answer: string): string | null {
   return last === undefined ? null : cut(last)
 }
 
+/** The skill a typed slash command names (`/design-code ...`), which raises no skill.prompt. */
+export function typedSkill(text: string): string | null {
+  return /^\/(\S+)/.exec(text.trim())?.[1] ?? null
+}
+
 /** "4/9 done" or "all 9 done" in a plan-progress report result. */
 export function taskCounts(result: string): { done: number; total: number } | null {
   const some = /ok, (\d+)\/(\d+) done/.exec(result)

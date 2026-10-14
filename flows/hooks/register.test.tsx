@@ -52,6 +52,7 @@ function installHost(on: On, store: Record<string, unknown> = {}, env: Record<st
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('skill.prompt', ($, e) => ({ text: e.text }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
@@ -570,4 +571,15 @@ test('/flows join says when there is no such flow, and how to use it', async ($,
   )
   await settle(host)
   expect(reports(host)).toEqual([])
+})
+
+test('reports the phase of a skill typed as a slash command, which raises no skill.prompt', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.prompt.submit({ text: '/design-code add a separator option', origin: { kind: 'composer' } } as never)
+  await $.prompt.submit({ text: '/commit', origin: { kind: 'composer' } } as never)
+  await settle(host)
+
+  expect(reports(host)).toEqual([['--flow', 'flow-7', 'phase', 'design']])
 })
