@@ -1,11 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { BandView, Board, Navigation, Problem } from '../types'
+import type { BandView, Board, Navigation, Observation, Problem } from '../types'
 import { bandModel, parseBoard } from './board'
 import type { BandModel, CardModel, DetailModel, Pill, Step } from './board'
 import type { Platform } from './browser'
 import { detectPlatform, isWindows, openUrlArgv } from './browser'
+import { reportArgs } from './reporter'
 import { currentFlow, jumpTo, moveCursor, reconcile, scrollTimeline, start, stepTab, toTop } from './navigation'
 
 const commandName = 'flows'
@@ -20,8 +21,14 @@ const view = atom({ plugin: 'flows', key: 'view' } as const, emptyView)
 const navigation = atom({ plugin: 'flows', key: 'navigation' } as const, start)
 const isShown = atom({ plugin: 'flows', key: 'isShown' } as const, false)
 
+const heartbeatIntervalMs = 30_000
+const reportTimeoutMs = 5_000
+
 let bandId: string | null = null
 let platform: Platform | null = null
+let flowId: string | null = null
+let reportQueue: Promise<void> = Promise.resolve()
+let hasWarned = false
 
 const pillStart = '\u{E0B6}'
 const pillEnd = '\u{E0B4}'
@@ -38,8 +45,7 @@ async function readBoard($: EngineInterface): Promise<BandView> {
     return { board: null, problem: { kind: 'missing', path: settings.flowPath } }
   }
   if (result.exitCode !== 0) {
-    const firstLine = (result.stdout.trim() || result.stderr.trim()).split('\n')[0] ?? ''
-    return { board: null, problem: { kind: 'failed', message: firstLine.replace(/^error: /, '') } }
+    return { board: null, problem: { kind: 'failed', message: firstLine(result.stdout, result.stderr) } }
   }
   const parsed = parseBoard(result.stdout)
   return 'kind' in parsed ? { board: null, problem: parsed } : { board: parsed, problem: null }
@@ -118,6 +124,41 @@ async function openMergeRequest($: EngineInterface): Promise<void> {
   if (!opened) await $.ui.toast(`Could not open ${flow.mergeRequest}`)
 }
 
+// Reporting
+
+/** Feeds one observation through reportArgs; no-op without a flow id or a report. Never throws. */
+function observe($: EngineInterface, observation: Observation): void {
+  if (flowId === null) return
+  const args = reportArgs(observation)
+  if (args !== null) enqueueReport($, args)
+}
+
+/** Appends one flow report call to the queue, so reports reach flow in event order. */
+function enqueueReport($: EngineInterface, args: readonly string[]): void {
+  reportQueue = reportQueue.then(() => runReport($, args)).catch(() => undefined)
+}
+
+/** Runs flow report --flow <flowId> ...args; a failure toasts once and is otherwise dropped. */
+async function runReport($: EngineInterface, args: readonly string[]): Promise<void> {
+  if (flowId === null) return
+  let failure: string | null = null
+  try {
+    const result = await $.process.run([settings.flowPath, 'report', '--flow', flowId, ...args], {
+      timeoutMs: reportTimeoutMs,
+    })
+    if (result.exitCode !== 0) failure = firstLine(result.stdout, result.stderr)
+  } catch {
+    failure = `flow is not installed at "${settings.flowPath}"`
+  }
+  if (failure === null || hasWarned) return
+  hasWarned = true
+  await $.ui.toast(`flows: could not report to flow - ${failure}`)
+}
+
+function firstLine(stdout: string, stderr: string): string {
+  return ((stdout.trim() || stderr.trim()).split('\n')[0] ?? '').replace(/^error: /, '')
+}
+
 // Hooks
 
 export const register: Register = (on, options) => {
@@ -129,6 +170,8 @@ export const register: Register = (on, options) => {
       description: 'Toggle the flows board above the prompt, or open one flow: /flows <name>',
       argumentHint: '[name]',
     })
+    flowId = (await $.env.get('FLOW_ID'))?.trim() || null
+    $.clock.every(heartbeatIntervalMs, () => observe($, { kind: 'heartbeat' }))
     await restoreVisibility($)
     $.clock.every(pollIntervalMs, () => {
       void (async () => {

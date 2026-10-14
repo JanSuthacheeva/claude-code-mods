@@ -16,7 +16,7 @@ interface Host {
   toasts: string[]
 }
 
-function installHost(on: On, store: Record<string, unknown> = {}): Host {
+function installHost(on: On, store: Record<string, unknown> = {}, env: Record<string, string> = {}): Host {
   const host: Host = {
     clock: mock.clock(on, { now: demoBoard.now }),
     calls: [],
@@ -25,7 +25,7 @@ function installHost(on: On, store: Record<string, unknown> = {}): Host {
     state: new Map(),
     toasts: [],
   }
-  mock.env(on, {})
+  mock.env(on, env)
   on('ui.toast', ($, e) => {
     host.toasts.push(e.text)
     return { value: undefined }
@@ -355,4 +355,42 @@ test('shows the board again after /clear starts a fresh session', async ($, on) 
   const band = await mountBand($)
   expect(await band.find({ type: 'Text', text: 'shop-221' })).toBeDefined()
   await band.unmount()
+})
+
+const worker = { FLOW_ID: 'flow-7' }
+
+function reports(host: Host): string[][] {
+  return host.calls.filter(call => call[1] === 'report').map(call => call.slice(2))
+}
+
+test('a session without a flow id reports nothing', async ($, on) => {
+  const host = installHost(on)
+  await start($)
+
+  await host.clock.advance(60_000)
+
+  expect(reports(host)).toEqual([])
+})
+
+test('a worker sends a heartbeat every 30 seconds to the flow in FLOW_ID', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await host.clock.advance(60_000)
+
+  expect(reports(host)).toEqual([
+    ['--flow', 'flow-7', 'heartbeat'],
+    ['--flow', 'flow-7', 'heartbeat'],
+  ])
+})
+
+test('says once when flow cannot take reports, then stays quiet', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  host.answer = { exitCode: 1, stdout: 'error: no flow named flow-7' }
+  await start($)
+
+  await host.clock.advance(90_000)
+
+  expect(reports(host)).toHaveLength(3)
+  expect(host.toasts).toEqual(['flows: could not report to flow - no flow named flow-7'])
 })
