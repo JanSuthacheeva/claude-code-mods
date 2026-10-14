@@ -35,6 +35,7 @@ const pillStart = '\u{E0B6}'
 const pillEnd = '\u{E0B4}'
 const mark = '\u{F0E7}'
 const maxTaskBar = 24
+const maxBoardColumns = 150
 
 // Board
 
@@ -345,12 +346,19 @@ export const register: Register = (on, options) => {
         <Box flexShrink={0}>
           <Text weight="bold" color="claude">{`${mark} flows  `}</Text>
         </Box>
-        {model.tabs.map((tab, index) => (
-          <Button key={tab.key} hotkey={tab.hotkey} plain onPress={() => void navigate($, (b, at) => jumpTo(b, at, index))}>
-            {tab.isActive ? pill({ text: tab.label, tone: 'claude' }) : <Text dimColor>{` ${tab.label}`}</Text>}
-            {tab.mark !== null && <Text color={tab.markTone}>{` ${tab.mark}`}</Text>}
-          </Button>
-        ))}
+        {model.tabs.map((tab, index) =>
+          tab.isActive ? (
+            <Text key={tab.key}>
+              {pill({ text: `${tab.hotkey} ${tab.label}`, tone: 'claude' })}
+              {tab.mark !== null && <Text color={tab.markTone}>{` ${tab.mark}`}</Text>}
+            </Text>
+          ) : (
+            <Box key={tab.key}>
+              <Button key={tab.key} hotkey={tab.hotkey} plain dimColor label={tab.label} onPress={() => void navigate($, (b, at) => jumpTo(b, at, index))} />
+              {tab.mark !== null && <Text color={tab.markTone}>{` ${tab.mark}`}</Text>}
+            </Box>
+          ),
+        )}
         {model.moreFlows > 0 && <Text dimColor>+{model.moreFlows}</Text>}
         <Box flexGrow={1} flexShrink={1} />
         {model.needsYou !== null && <Box flexShrink={0}>{pill(model.needsYou)}</Box>}
@@ -489,14 +497,15 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
-    const model = board === null ? null : bandModel(board, await read($, navigation), e.props.bodyColumns - 2)
+    const columns = Math.min(e.props.bodyColumns - 2, maxBoardColumns)
+    const model = board === null ? null : bandModel(board, await read($, navigation), columns)
     const tree =
       model === null ? (
         drawProblem(problem)
       ) : (
-        <Box flexDirection="column">
+        <Box flexDirection="column" width={columns}>
           {drawTabs(model)}
-          {model.cards !== null && drawCards(model.cards, e.props.bodyColumns - 2)}
+          {model.cards !== null && drawCards(model.cards, columns)}
           {model.detail !== null && drawDetail(model.detail)}
           {drawLegend()}
         </Box>

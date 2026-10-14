@@ -285,6 +285,7 @@ test('digits jump between All and the flow tabs', async ($, on) => {
   await band.press({ key: `tab-${ids[1] ?? ''}` })
   expect(navigationOf(host)?.tab).toBe(ids[1])
 
+  await band.redraw()
   await band.press({ key: 'tab-all' })
   expect(navigationOf(host)?.tab).toBeNull()
   await band.unmount()
