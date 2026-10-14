@@ -43,6 +43,9 @@ function installHost(on: On, store: Record<string, unknown> = {}, env: Record<st
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('skill.prompt', ($, e) => ({ text: e.text }))
+  on('turn.start', ($, e) => ({ turnId: e.turnId }))
+  on('turn.complete', ($, e) => ({ text: e.answer }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('process.run', ($, e) => {
     host.calls.push([...e.argv])
@@ -393,4 +396,55 @@ test('says once when flow cannot take reports, then stays quiet', async ($, on) 
 
   expect(reports(host)).toHaveLength(3)
   expect(host.toasts).toEqual(['flows: could not report to flow - no flow named flow-7'])
+})
+
+function turnEnd(answer: string, agentId?: string) {
+  return {
+    answer,
+    durationMs: 10,
+    isAborted: false,
+    turnId: 't1',
+    reason: 'answer',
+    ...(agentId === undefined ? {} : { agentId }),
+  } as const
+}
+
+async function settle(host: Host): Promise<void> {
+  await host.clock.advance(1)
+}
+
+test('reports a phase when a phase skill starts, and nothing for other skills', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.skill.prompt({ skill: 'design-code', text: 'Plan the design', frontmatter: {} })
+  await $.skill.prompt({ skill: 'commit', text: 'Commit', frontmatter: {} })
+  await settle(host)
+
+  expect(reports(host)).toEqual([['--flow', 'flow-7', 'phase', 'design']])
+})
+
+test('reports waiting when the main turn ends, working when the next one starts', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.turn.complete(turnEnd('The approaches page is open.\nWhich approach do you pick?'))
+  await $.turn.complete(turnEnd('subagent finished', 'agent-1'))
+  await $.turn.start({ text: 'A', turnId: 't2' })
+  await settle(host)
+
+  expect(reports(host)).toEqual([
+    ['--flow', 'flow-7', 'waiting', 'Which approach do you pick?'],
+    ['--flow', 'flow-7', 'working'],
+  ])
+})
+
+test('reports ended when the session ends, but not for /clear', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.session.end({ reason: 'clear', sessionId: 's1', resume: { id: 's1' } })
+  await $.session.end({ reason: 'prompt_input_exit', sessionId: 's1', resume: { id: 's1' } })
+
+  expect(reports(host)).toEqual([['--flow', 'flow-7', 'ended']])
 })

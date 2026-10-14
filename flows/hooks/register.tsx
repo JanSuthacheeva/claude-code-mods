@@ -27,6 +27,7 @@ const reportTimeoutMs = 5_000
 let bandId: string | null = null
 let platform: Platform | null = null
 let flowId: string | null = null
+let runningAgents = 0
 let reportQueue: Promise<void> = Promise.resolve()
 let hasWarned = false
 
@@ -182,10 +183,27 @@ export const register: Register = (on, options) => {
   })
 
   on('session.end', async ($, e, next) => {
+    observe($, { kind: 'session-end', reason: e.reason })
+    await reportQueue
     const result = await next(e)
     if (e.reason === 'clear') void restoreVisibility($).catch(() => undefined)
     return result
   })
+
+  on('skill.prompt', ($, e, next) => {
+    observe($, { kind: 'skill', skill: e.skill })
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('turn.start', ($, e, next) => {
+    if (runningAgents === 0) observe($, { kind: 'turn-start' })
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('turn.complete', ($, e, next) => {
+    if (e.agentId === undefined) observe($, { kind: 'turn-end', answer: e.answer })
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: commandName }, async ($, e) => {
     const name = e.args.trim()
