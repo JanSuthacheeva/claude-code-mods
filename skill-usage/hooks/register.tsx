@@ -124,7 +124,7 @@ export const register: Register = on => {
 
     const stat = (value: number, label: string): JSX.Element => (
       <Text>
-        <Text bold>{thousands(value)}</Text>
+        <Text weight="bold">{thousands(value)}</Text>
         <Text dimColor> {label}</Text>
       </Text>
     )
@@ -132,7 +132,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" width={width} borderStyle="round" borderColor="subtle" paddingX={1}>
         <Box gap={3}>
-          <Text bold color="claude">
+          <Text weight="bold" color="claude">
             Skill usage
           </Text>
           {stat(usage.sessions, 'sessions')}
@@ -189,7 +189,7 @@ export const register: Register = on => {
               </Text>
             </Box>
             <Box width={columnWidths.total} justifyContent="flex-end">
-              <Text bold>{thousands(row.total)}</Text>
+              <Text weight="bold">{thousands(row.total)}</Text>
             </Box>
             <Box width={barWidth}>
               <Text wrap="truncate">

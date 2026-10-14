@@ -261,7 +261,7 @@ export const register: Register = on => {
     if (progress === null) {
       return (
         <Box flexDirection="column" gap={1} paddingX={panePadding}>
-          <Text bold>No plan tracked in this project</Text>
+          <Text weight="bold">No plan tracked in this project</Text>
           <Text>
             Claude starts tracking when it works through a plan with checkboxes, or run /plan-progress &lt;file&gt;.
           </Text>
@@ -283,7 +283,7 @@ export const register: Register = on => {
     if (model.total === 0) {
       return (
         <Box flexDirection="column" gap={1} paddingX={panePadding}>
-          <Text bold wrap="truncate-end">
+          <Text weight="bold" wrap="truncate-end">
             {model.title}
           </Text>
           <Text>No checkbox items in {fileName(progress.plan)}. Add "- [ ]" items to track progress.</Text>
@@ -299,7 +299,7 @@ export const register: Register = on => {
       <Box flexDirection="column" paddingX={panePadding}>
         <Box gap={2}>
           <Box flexGrow={1} flexShrink={1}>
-            <Text bold wrap="truncate-end">
+            <Text weight="bold" wrap="truncate-end">
               {model.title}
             </Text>
           </Box>
@@ -320,7 +320,7 @@ export const register: Register = on => {
           <Box flexDirection="column" marginTop={1}>
             <Box gap={1}>
               <Box width={7} flexShrink={0}>
-                <Text color={focusColor} bold>
+                <Text color={focusColor} weight="bold">
                   {model.focus.label}
                 </Text>
               </Box>
@@ -342,7 +342,7 @@ export const register: Register = on => {
             {model.next !== null && (
               <Box gap={1}>
                 <Box width={7} flexShrink={0}>
-                  <Text bold>Next</Text>
+                  <Text weight="bold">Next</Text>
                 </Box>
                 <Text wrap="truncate-end">
                   <Text dimColor>{model.next.ref}</Text> {model.next.text}
@@ -359,7 +359,7 @@ export const register: Register = on => {
                 <Box gap={1}>
                   <Text color={icons[group.state].color}>{icons[group.state].glyph}</Text>
                   <Box flexGrow={1} flexShrink={1}>
-                    <Text wrap="truncate-end" bold={group.state === 'active' || group.state === 'blocked'}>
+                    <Text wrap="truncate-end" weight={group.state === 'active' || group.state === 'blocked' ? 'bold' : 'regular'}>
                       {group.title}
                     </Text>
                   </Box>
@@ -380,7 +380,7 @@ export const register: Register = on => {
 
         {model.recent.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
-            <Text bold>Recent</Text>
+            <Text weight="bold">Recent</Text>
             <Box flexDirection="column">
               {model.recent.map(row => (
                 <Box key={row.key} gap={1}>
