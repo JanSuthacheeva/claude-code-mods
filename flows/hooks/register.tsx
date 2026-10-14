@@ -1,9 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { BandView, Board, Navigation } from '../types'
-import { parseBoard } from './board'
-import { reconcile, start } from './navigation'
+import type { BandView, Board, Navigation, Problem } from '../types'
+import { bandModel, parseBoard } from './board'
+import type { BandModel, CardModel, DetailModel, Pill, Step } from './board'
+import { jumpTo, reconcile, start } from './navigation'
 
 const commandName = 'flows'
 const pollIntervalMs = 2_000
@@ -16,6 +17,10 @@ const emptyView: BandView = { board: null, problem: null }
 const view = atom({ plugin: 'flows', key: 'view' } as const, emptyView)
 const navigation = atom({ plugin: 'flows', key: 'navigation' } as const, start)
 const isShown = atom({ plugin: 'flows', key: 'isShown' } as const, false)
+
+const pillStart = '\u{E0B6}'
+const pillEnd = '\u{E0B4}'
+const mark = '\u{F0E7}'
 
 // Board
 
@@ -88,4 +93,219 @@ export const register: Register = (on, options) => {
     await navigate($, (_, at) => ({ ...at, tab: flow.id, offset: 0 }))
     return { text: `Showing ${flow.name}.` }
   }).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey || !(await read($, isShown))) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const { board, problem } = await read($, view)
+    const beneath = await next(e)
+
+    const pill = ({ text, tone }: Pill) => (
+      <Text>
+        <Text color={tone}>{pillStart}</Text>
+        <Text backgroundColor={tone} color="inverseText" weight="bold">
+          {` ${text} `}
+        </Text>
+        <Text color={tone}>{pillEnd}</Text>
+      </Text>
+    )
+
+    const steps = (items: Step[], withTimes: boolean) => (
+      <Text wrap="truncate-end">
+        {items.map((step, index) => (
+          <Text key={step.phase}>
+            {index > 0 && <Text color={step.tone === 'inactive' ? 'inactive' : 'success'}>{' ── '}</Text>}
+            <Text color={step.tone}>{step.glyph}</Text>
+            {withTimes && (
+              <Text color={step.tone} weight={step.isCurrent ? 'bold' : 'regular'}>
+                {` ${step.label}${step.duration === '' ? '' : ` ${step.duration}`}`}
+              </Text>
+            )}
+          </Text>
+        ))}
+      </Text>
+    )
+
+    const taskBar = (tasks: { done: number; total: number } | null, width: number) => {
+      const filled = tasks === null || tasks.total === 0 ? 0 : Math.round((tasks.done / tasks.total) * width)
+      return (
+        <Text>
+          <Text color="success">{'━'.repeat(filled)}</Text>
+          <Text color="inactive">{'━'.repeat(width - filled)}</Text>
+        </Text>
+      )
+    }
+
+    const drawTabs = (model: BandModel) => (
+      <Box gap={1}>
+        <Box flexShrink={0}>
+          <Text weight="bold" color="claude">{`${mark} flows  `}</Text>
+        </Box>
+        {model.tabs.map((tab, index) => (
+          <Button key={tab.key} hotkey={tab.hotkey} plain onPress={() => void navigate($, (b, at) => jumpTo(b, at, index))}>
+            {tab.isActive ? pill({ text: tab.label, tone: 'claude' }) : <Text dimColor>{` ${tab.label}`}</Text>}
+            {tab.mark !== null && <Text color={tab.markTone}>{` ${tab.mark}`}</Text>}
+          </Button>
+        ))}
+        {model.moreFlows > 0 && <Text dimColor>+{model.moreFlows}</Text>}
+        <Box flexGrow={1} flexShrink={1} />
+        {model.needsYou !== null && <Box flexShrink={0}>{pill(model.needsYou)}</Box>}
+      </Box>
+    )
+
+    const drawCard = (card: CardModel, width: number) => (
+      <Box key={card.key} width={width} flexDirection="column" borderStyle="round" borderColor={card.borderTone} paddingX={1}>
+        <Box gap={1}>
+          <Box flexGrow={1} flexShrink={1}>
+            <Button key={card.key} plain onPress={() => void navigate($, (_, at) => ({ ...at, tab: card.flowId, offset: 0 }))}>
+              <Text weight="bold">{card.name}</Text>
+            </Button>
+          </Box>
+          <Box flexShrink={0}>{pill(card.state)}</Box>
+        </Box>
+        <Box gap={2}>
+          {steps(card.rail, false)}
+          <Text color={card.rail.find(step => step.isCurrent)?.tone ?? (card.railLabel === 'done' ? 'success' : 'subtle')} weight="bold">
+            {card.railLabel}
+          </Text>
+        </Box>
+        <Box gap={1}>
+          {taskBar(card.tasks, Math.max(8, width - 26))}
+          <Text dimColor>{card.tasks === null ? 'no tasks yet' : `${String(card.tasks.done)}/${String(card.tasks.total)}`}</Text>
+          <Box flexGrow={1} />
+          <Text dimColor>{card.age} ago</Text>
+        </Box>
+        <Text color={card.line.tone} wrap="truncate-end">
+          {card.line.text}
+        </Text>
+      </Box>
+    )
+
+    const drawCards = (rows: CardModel[][], columns: number) => {
+      const perRow = rows[0]?.length ?? 1
+      const width = Math.floor((columns - (perRow - 1)) / perRow)
+      return (
+        <Box flexDirection="column" marginTop={1}>
+          {rows.map((row, index) => (
+            <Box key={`cards-${String(index)}`} gap={1}>
+              {row.map(card => drawCard(card, width))}
+            </Box>
+          ))}
+        </Box>
+      )
+    }
+
+    const drawDetail = (detail: DetailModel) => (
+      <Box flexDirection="column">
+        <Box flexDirection="column" borderStyle="round" borderColor={detail.borderTone} paddingX={1} marginTop={1}>
+          <Box gap={1}>
+            <Text weight="bold">{detail.name}</Text>
+            {pill(detail.state)}
+            {pill(detail.mode)}
+            <Box flexGrow={1} />
+            <Text dimColor>{detail.started}</Text>
+          </Box>
+          <Text dimColor wrap="truncate-end">
+            {detail.request}
+          </Text>
+          <Box gap={3}>
+            <Box flexShrink={1}>{steps(detail.steps, true)}</Box>
+            <Box flexGrow={1} />
+            <Text>
+              {taskBar(detail.tasks, 14)}
+              <Text dimColor>{detail.tasks === null ? ' no tasks' : ` ${String(detail.tasks.done)}/${String(detail.tasks.total)}`}</Text>
+            </Text>
+          </Box>
+          {detail.blocker !== null && (
+            <Box gap={1}>
+              {pill({ text: detail.blocker.badge, tone: detail.blocker.tone })}
+              <Text color={detail.blocker.tone} wrap="truncate-end">
+                {detail.blocker.text}
+              </Text>
+            </Box>
+          )}
+        </Box>
+        <Box gap={4} marginTop={1} paddingX={1}>
+          <Box flexDirection="column" width="50%" flexShrink={1}>
+            <Text dimColor weight="bold">
+              TIMELINE
+            </Text>
+            {detail.timeline.map((entry, index) => (
+              <Box key={`entry-${String(index)}`} gap={1}>
+                <Text color={entry.tone}>{entry.glyph}</Text>
+                <Box width={4} flexShrink={0}>
+                  <Text dimColor>{entry.ago}</Text>
+                </Box>
+                <Text color={entry.tone} wrap="truncate-end">
+                  {entry.text}
+                </Text>
+              </Box>
+            ))}
+            {detail.older > 0 && <Text dimColor>{`${String(detail.older)} older · j`}</Text>}
+          </Box>
+          <Box flexDirection="column" width="50%" flexShrink={1}>
+            <Text dimColor weight="bold">
+              DECISIONS
+            </Text>
+            {detail.decisions.length === 0 && <Text dimColor>none yet</Text>}
+            {detail.decisions.map(decision => (
+              <Text key={decision} wrap="truncate-end">
+                <Text color="claude">◆ </Text>
+                {decision}
+              </Text>
+            ))}
+          </Box>
+        </Box>
+      </Box>
+    )
+
+    const drawLegend = () => (
+      <Box gap={2}>
+        <Box flexGrow={1} />
+        <Text dimColor>h ‹  l ›  j ↓  k ↑  g top  o MR</Text>
+        <Text dimColor>0-9 jump · ctrl+x tab for keys</Text>
+      </Box>
+    )
+
+    const drawProblem = (reason: Problem | null) => (
+      <Box gap={1}>
+        <Text weight="bold" color="claude">{`${mark} flows`}</Text>
+        <Text color="warning" wrap="truncate-end">
+          {problemText(reason)}
+        </Text>
+      </Box>
+    )
+
+    const model = board === null ? null : bandModel(board, await read($, navigation), e.props.bodyColumns - 2)
+    const tree =
+      model === null ? (
+        drawProblem(problem)
+      ) : (
+        <Box flexDirection="column">
+          {drawTabs(model)}
+          {model.cards !== null && drawCards(model.cards, e.props.bodyColumns - 2)}
+          {model.detail !== null && drawDetail(model.detail)}
+          {drawLegend()}
+        </Box>
+      )
+
+    return (
+      <Box flexDirection="column" paddingX={1}>
+        {tree}
+        {beneath}
+      </Box>
+    )
+  }).catch(($, e, next) => next(e))
+}
+
+function problemText(problem: Problem | null): string {
+  if (problem === null) return 'Reading flows...'
+  switch (problem.kind) {
+    case 'missing':
+      return `flow is not installed at "${problem.path}" - run cargo install --path ~/projects/flow, or set flowPath`
+    case 'failed':
+      return `flow failed: ${problem.message}`
+    case 'unsupported':
+      return `flow speaks contract v${String(problem.version)}; update the flows mod`
+  }
 }

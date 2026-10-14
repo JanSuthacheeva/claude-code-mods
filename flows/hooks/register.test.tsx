@@ -1,4 +1,4 @@
-import type { On } from 'claude-code'
+import type { On, RenderElement } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
@@ -143,4 +143,109 @@ test('falls back to All when the open flow is cleared', async ($, on) => {
   await host.clock.advance(2_000)
 
   expect(navigationOf(host)?.tab).toBeNull()
+})
+
+function underBand(on: On, text = 'beneath the board'): void {
+  on('ui.render', { component: 'AbovePrompt' }, (engine, e) => {
+    const { Text } = engine.ui.resolve(e)
+    return h(Text, {}, text) as RenderElement
+  })
+}
+
+async function mountBand($: Engine, hasSurvey = false) {
+  return $.ui.mount({
+    plugin: 'flows',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: {
+      hasSurvey,
+      isWorking: false,
+      maxRows: 40,
+      bodyColumns: 120,
+      scroll: { offset: 0, bodyRows: 40 },
+      view: {},
+    },
+  })
+}
+
+test('draws the tab row and one card per flow on All', async ($, on) => {
+  installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+
+  const band = await mountBand($)
+
+  expect(await band.find({ type: 'Text', text: /flows/ })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: ' All ' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: ' 2 need you ' })).toBeDefined()
+  for (const name of ['shop-221', 'shop-230', 'export-csv', 'shop-198']) {
+    expect(await band.find({ type: 'Text', text: name })).toBeDefined()
+  }
+  expect(await band.find({ type: 'Text', text: ' blocked ' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'Task 5: the migration needs a default value for exported_at' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'agent: review changes' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /0-9 jump/ })).toBeDefined()
+  await band.unmount()
+})
+
+test("draws one flow's card, timeline and decisions on its tab", async ($, on) => {
+  installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed('shop-221'))
+
+  const band = await mountBand($)
+
+  expect(await band.find({ type: 'Text', text: ' shop-221 ' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: ' auto ' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'TIMELINE' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'phase: implement' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: '2 older · j' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'DECISIONS' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: ' ! ' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'agent: review changes' })).toBeUndefined()
+  await band.unmount()
+})
+
+test('stacks the board above whatever another mod draws in the band', async ($, on) => {
+  installHost(on)
+  underBand(on, 'skill-usage counts')
+  await start($)
+
+  const hidden = await mountBand($)
+  expect(await hidden.find({ type: 'Text', text: 'skill-usage counts' })).toBeDefined()
+  expect(await hidden.find({ type: 'Text', text: /flows/ })).toBeUndefined()
+  await hidden.unmount()
+
+  await $.command.run(typed(''))
+  const shown = await mountBand($)
+  expect(await shown.find({ type: 'Text', text: 'skill-usage counts' })).toBeDefined()
+  expect(await shown.find({ type: 'Text', text: 'shop-221' })).toBeDefined()
+  await shown.unmount()
+})
+
+test('steps aside while a survey holds the band', async ($, on) => {
+  installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+
+  const band = await mountBand($, true)
+
+  expect(await band.find({ type: 'Text', text: 'shop-221' })).toBeUndefined()
+  await band.unmount()
+})
+
+test('says how to install flow when the binary is missing', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  host.answer = 'missing'
+  await start($)
+  await $.command.run(typed(''))
+
+  const band = await mountBand($)
+
+  expect(await band.find({ type: 'Text', text: /flow is not installed at "flow"/ })).toBeDefined()
+  await band.unmount()
 })
