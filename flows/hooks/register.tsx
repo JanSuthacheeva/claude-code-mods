@@ -4,7 +4,9 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { BandView, Board, Navigation, Problem } from '../types'
 import { bandModel, parseBoard } from './board'
 import type { BandModel, CardModel, DetailModel, Pill, Step } from './board'
-import { jumpTo, reconcile, start } from './navigation'
+import type { Platform } from './browser'
+import { detectPlatform, isWindows, openUrlArgv } from './browser'
+import { currentFlow, jumpTo, moveCursor, reconcile, scrollTimeline, start, stepTab, toTop } from './navigation'
 
 const commandName = 'flows'
 const pollIntervalMs = 2_000
@@ -17,6 +19,9 @@ const emptyView: BandView = { board: null, problem: null }
 const view = atom({ plugin: 'flows', key: 'view' } as const, emptyView)
 const navigation = atom({ plugin: 'flows', key: 'navigation' } as const, start)
 const isShown = atom({ plugin: 'flows', key: 'isShown' } as const, false)
+
+let bandId: string | null = null
+let platform: Platform | null = null
 
 const pillStart = '\u{E0B6}'
 const pillEnd = '\u{E0B4}'
@@ -55,6 +60,54 @@ async function show($: EngineInterface, shown: boolean): Promise<void> {
 async function navigate($: EngineInterface, move: (board: Board, at: Navigation) => Navigation): Promise<void> {
   const { board } = await read($, view)
   if (board !== null) await update($, navigation, at => move(board, at))
+}
+
+async function focusCursor($: EngineInterface): Promise<void> {
+  const { board } = await read($, view)
+  const at = await read($, navigation)
+  if (board === null || at.tab !== null || bandId === null) return
+  const flow = currentFlow(board, at)
+  if (flow) await $.ui.focus({ requestId: bandId, key: `row-${flow.id}` }).catch(() => undefined)
+}
+
+async function moveDown($: EngineInterface, by: -1 | 1): Promise<void> {
+  const at = await read($, navigation)
+  if (at.tab === null) {
+    await navigate($, (b, current) => moveCursor(b, current, by))
+    await focusCursor($)
+  } else {
+    await navigate($, (b, current) => scrollTimeline(b, current, by))
+  }
+}
+
+async function goToTop($: EngineInterface): Promise<void> {
+  await navigate($, (_, at) => toTop(at))
+  await focusCursor($)
+}
+
+async function openMergeRequest($: EngineInterface): Promise<void> {
+  const { board } = await read($, view)
+  const flow = board === null ? null : currentFlow(board, await read($, navigation))
+  if (flow === null) return
+  if (flow.mergeRequest === null) {
+    await $.ui.toast(`${flow.name} has no merge request yet`)
+    return
+  }
+  if (platform === null) {
+    const osVariable = await $.env.get('OS')
+    const kernel = isWindows(osVariable)
+      ? null
+      : await $.process
+          .run(['uname', '-s'], { timeoutMs: statusTimeoutMs })
+          .then(result => result.stdout.trim())
+          .catch(() => null)
+    platform = detectPlatform(osVariable, kernel)
+  }
+  const opened = await $.process
+    .run(openUrlArgv(platform, flow.mergeRequest), { timeoutMs: statusTimeoutMs })
+    .then(result => result.exitCode === 0)
+    .catch(() => false)
+  if (!opened) await $.ui.toast(`Could not open ${flow.mergeRequest}`)
 }
 
 // Hooks
@@ -97,6 +150,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey || !(await read($, isShown))) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
+    bandId = e.requestId
     const { board, problem } = await read($, view)
     const beneath = await next(e)
 
@@ -259,10 +313,19 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
+    const legendKey = (key: string, hotkey: string, label: string, onPress: () => Promise<void>) => (
+      <Button key={key} hotkey={hotkey} plain dimColor label={label} onPress={() => void onPress().catch(() => undefined)} />
+    )
+
     const drawLegend = () => (
       <Box gap={2}>
         <Box flexGrow={1} />
-        <Text dimColor>h ‹  l ›  j ↓  k ↑  g top  o MR</Text>
+        {legendKey('key-h', 'h', '‹', () => navigate($, (b, at) => stepTab(b, at, -1)))}
+        {legendKey('key-l', 'l', '›', () => navigate($, (b, at) => stepTab(b, at, 1)))}
+        {legendKey('key-j', 'j', '↓', () => moveDown($, 1))}
+        {legendKey('key-k', 'k', '↑', () => moveDown($, -1))}
+        {legendKey('key-g', 'g', 'top', () => goToTop($))}
+        {legendKey('key-o', 'o', 'MR', () => openMergeRequest($))}
         <Text dimColor>0-9 jump · ctrl+x tab for keys</Text>
       </Box>
     )

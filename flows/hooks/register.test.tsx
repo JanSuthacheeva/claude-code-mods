@@ -13,6 +13,7 @@ interface Host {
   answer: FlowAnswer
   store: Map<string, unknown>
   state: Map<string, { value: unknown; version: number }>
+  toasts: string[]
 }
 
 function installHost(on: On, store: Record<string, unknown> = {}): Host {
@@ -22,7 +23,13 @@ function installHost(on: On, store: Record<string, unknown> = {}): Host {
     answer: { exitCode: 0, stdout: JSON.stringify(demoBoard) },
     store: new Map(Object.entries(store)),
     state: new Map(),
+    toasts: [],
   }
+  mock.env(on, {})
+  on('ui.toast', ($, e) => {
+    host.toasts.push(e.text)
+    return { value: undefined }
+  })
   on('store.get', ($, e) => ({ value: host.store.get(e.key) }))
   on('store.set', ($, e) => {
     host.store.set(e.key, e.value)
@@ -38,6 +45,8 @@ function installHost(on: On, store: Record<string, unknown> = {}): Host {
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('process.run', ($, e) => {
     host.calls.push([...e.argv])
+    if (e.argv[0] === 'uname') return { value: { exitCode: 0, stdout: 'Darwin\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    if (e.argv[0] === 'open') return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     if (host.answer === 'missing') return { deny: `spawn ${e.argv[0] ?? ''} ENOENT` }
     return {
       value: { exitCode: host.answer.exitCode, stdout: host.answer.stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -70,10 +79,10 @@ function navigationOf(host: Host): Navigation | undefined {
 test('/flows shows the board from flow status --json and remembers it, and hides it again', async ($, on) => {
   const host = installHost(on)
   await start($)
-  expect(host.calls).toEqual([])
+  expect(host.calls.filter(call => call[0] === 'flow')).toEqual([])
 
   expect(await $.command.run(typed(''))).toEqual(expect.objectContaining({ text: 'Flows shown.' }))
-  expect(host.calls).toEqual([['flow', 'status', '--json']])
+  expect(host.calls.filter(call => call[0] === 'flow')).toEqual([['flow', 'status', '--json']])
   expect(bandView(host)?.board).toEqual(demoBoard)
   expect(host.store.get('isShown')).toBe(true)
 
@@ -94,16 +103,17 @@ test('a session shows the board again when it was shown before', async ($, on) =
 test('refreshes every two seconds only while shown', async ($, on) => {
   const host = installHost(on)
   await start($)
+  const flowCalls = () => host.calls.filter(call => call[0] === 'flow').length
   await host.clock.advance(2_000)
-  expect(host.calls).toHaveLength(0)
+  expect(flowCalls()).toBe(0)
 
   await $.command.run(typed(''))
   await host.clock.advance(2_000)
-  expect(host.calls).toHaveLength(2)
+  expect(flowCalls()).toBe(2)
 
   await $.command.run(typed(''))
   await host.clock.advance(4_000)
-  expect(host.calls).toHaveLength(2)
+  expect(flowCalls()).toBe(2)
 })
 
 test('/flows <name> opens that flow, and says when there is none', async ($, on) => {
@@ -247,5 +257,86 @@ test('says how to install flow when the binary is missing', async ($, on) => {
   const band = await mountBand($)
 
   expect(await band.find({ type: 'Text', text: /flow is not installed at "flow"/ })).toBeDefined()
+  await band.unmount()
+})
+
+const ids = demoBoard.flows.map(flow => flow.id)
+
+test('digits jump between All and the flow tabs', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+  const band = await mountBand($)
+
+  await band.press({ key: `tab-${ids[1] ?? ''}` })
+  expect(navigationOf(host)?.tab).toBe(ids[1])
+
+  await band.press({ key: 'tab-all' })
+  expect(navigationOf(host)?.tab).toBeNull()
+  await band.unmount()
+})
+
+test('h and l step through the tabs, wrapping around', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+  const band = await mountBand($)
+
+  await band.press({ key: 'key-l' })
+  expect(navigationOf(host)?.tab).toBe(ids[0])
+  await band.press({ key: 'key-h' })
+  await band.press({ key: 'key-h' })
+  expect(navigationOf(host)?.tab).toBe(ids[3])
+  await band.unmount()
+})
+
+test('j and k move the cursor over the cards on All, and Enter opens one', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+  const band = await mountBand($)
+
+  await band.press({ key: 'key-j' })
+  await band.press({ key: 'key-j' })
+  await band.press({ key: 'key-k' })
+  expect(navigationOf(host)?.cursor).toBe(1)
+
+  await band.press({ key: `row-${ids[1] ?? ''}` })
+  expect(navigationOf(host)?.tab).toBe(ids[1])
+  await band.unmount()
+})
+
+test('j and k scroll the timeline on a flow tab, and g goes back to the newest', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed('shop-221'))
+  const band = await mountBand($)
+
+  await band.press({ key: 'key-j' })
+  await band.press({ key: 'key-j' })
+  expect(navigationOf(host)?.offset).toBe(2)
+
+  await band.press({ key: 'key-g' })
+  expect(navigationOf(host)?.offset).toBe(0)
+  await band.unmount()
+})
+
+test('o opens the merge request of the flow, or says there is none yet', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed('shop-198'))
+  const band = await mountBand($)
+
+  await band.press({ key: 'key-o' })
+  expect(host.calls).toContainEqual(['open', 'https://gitlab.com/acme/shop/-/merge_requests/88'])
+
+  await $.command.run(typed('shop-221'))
+  await band.press({ key: 'key-o' })
+  expect(host.toasts).toEqual(['shop-221 has no merge request yet'])
   await band.unmount()
 })
