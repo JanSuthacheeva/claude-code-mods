@@ -57,6 +57,20 @@ export interface Navigation {
   offset: number
 }
 
+/** What a Claude Code worker session did, as the reporter sees it. */
+export type Observation =
+  | { kind: 'skill'; skill: string }
+  | { kind: 'delegated'; description: string }
+  | { kind: 'agent-done' }
+  | { kind: 'question'; text: string }
+  | { kind: 'answered' }
+  | { kind: 'plan-report'; status: 'doing' | 'done' | 'blocked'; item: string; note: string | null; result: string }
+  | { kind: 'command'; command: string; stdout: string }
+  | { kind: 'turn-start' }
+  | { kind: 'turn-end'; answer: string }
+  | { kind: 'session-end'; reason: string }
+  | { kind: 'heartbeat' }
+
 declare module 'claude-code' {
   interface PluginState {
     flows: { view: BandView; navigation: Navigation; isShown: boolean }
