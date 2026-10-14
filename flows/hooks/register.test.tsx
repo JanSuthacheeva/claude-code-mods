@@ -42,6 +42,7 @@ function installHost(on: On, store: Record<string, unknown> = {}): Host {
     return { value: { isSet: true, version } }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('process.run', ($, e) => {
     host.calls.push([...e.argv])
@@ -338,5 +339,20 @@ test('o opens the merge request of the flow, or says there is none yet', async (
   await $.command.run(typed('shop-221'))
   await band.press({ key: 'key-o' })
   expect(host.toasts).toEqual(['shop-221 has no merge request yet'])
+  await band.unmount()
+})
+
+test('shows the board again after /clear starts a fresh session', async ($, on) => {
+  const host = installHost(on)
+  underBand(on)
+  await start($)
+  await $.command.run(typed(''))
+
+  await $.session.end({ reason: 'clear', sessionId: 'first', resume: { id: 'first' } })
+  host.state.clear()
+  await host.clock.advance(2_000)
+
+  const band = await mountBand($)
+  expect(await band.find({ type: 'Text', text: 'shop-221' })).toBeDefined()
   await band.unmount()
 })

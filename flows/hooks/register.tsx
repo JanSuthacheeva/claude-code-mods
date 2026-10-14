@@ -57,6 +57,13 @@ async function show($: EngineInterface, shown: boolean): Promise<void> {
   if (shown) await refresh($)
 }
 
+/** /clear resets the session's state without a session.start, so this also runs after one. */
+async function restoreVisibility($: EngineInterface): Promise<void> {
+  const wasShown = (await $.store.get(shownKey)) === true
+  await update($, isShown, () => wasShown)
+  if (wasShown) await refresh($)
+}
+
 async function navigate($: EngineInterface, move: (board: Board, at: Navigation) => Navigation): Promise<void> {
   const { board } = await read($, view)
   if (board !== null) await update($, navigation, at => move(board, at))
@@ -121,15 +128,19 @@ export const register: Register = (on, options) => {
       description: 'Toggle the flows board above the prompt, or open one flow: /flows <name>',
       argumentHint: '[name]',
     })
-    const wasShown = (await $.store.get(shownKey)) === true
-    await update($, isShown, () => wasShown)
+    await restoreVisibility($)
     $.clock.every(pollIntervalMs, () => {
       void (async () => {
         if (await read($, isShown)) await refresh($)
       })().catch(() => undefined)
     })
-    if (wasShown) void refresh($).catch(() => undefined)
     return next(e)
+  })
+
+  on('session.end', async ($, e, next) => {
+    const result = await next(e)
+    if (e.reason === 'clear') void restoreVisibility($).catch(() => undefined)
+    return result
   })
 
   on('command.run', { command: commandName }, async ($, e) => {
