@@ -60,7 +60,18 @@ export function waitingQuestion(answer: string): string | null {
     .map(line => line.trim())
     .filter(line => line !== '')
   const last = lines[lines.length - 1]
-  return last === undefined ? null : cut(last)
+  if (last === undefined) return null
+  const sentences = plain(last).split(/(?<=[.!?])\s+/)
+  const question = sentences.filter(sentence => sentence.endsWith('?')).pop()
+  return cut(question ?? sentences.pop() ?? last)
+}
+
+/** A Markdown line as plain text: no list marker, emphasis or code ticks. */
+function plain(line: string): string {
+  return line
+    .replace(/^([-*+]|\d+\.)\s+/, '')
+    .replace(/[*_`]+/g, '')
+    .trim()
 }
 
 /** The skill a typed slash command names (`/design-code ...`), which raises no skill.prompt. */

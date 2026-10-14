@@ -21,8 +21,12 @@ test('reports delegated, working and waiting around agents, questions and turns'
   expect(reportArgs({ kind: 'turn-end', answer: '  \n' })).toEqual(['waiting', 'turn ended'])
 })
 
-test('takes the last line of an answer as the question, cut to the limit', () => {
+test('takes the question from the last line of an answer, cut to the limit', () => {
   expect(waitingQuestion('a\nb\n\n')).toBe('b')
+  expect(waitingQuestion('Built the page. It shows both options. Which one should I take? I lean to B.')).toBe('Which one should I take?')
+  expect(waitingQuestion('Done.\n\nThe page uses the nord fallback. It renders fine. Review it in the browser.')).toBe('Review it in the browser.')
+  expect(waitingQuestion('- **Ship it now?**')).toBe('Ship it now?')
+  expect(waitingQuestion('See `src/main.rs` (v1.2) for details')).toBe('See src/main.rs (v1.2) for details')
   expect(waitingQuestion('')).toBeNull()
   expect(waitingQuestion('x'.repeat(reportTextLimit + 10))?.length).toBe(reportTextLimit)
 })
