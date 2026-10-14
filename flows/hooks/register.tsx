@@ -156,6 +156,23 @@ async function runReport($: EngineInterface, args: readonly string[]): Promise<v
   await $.ui.toast(`flows: could not report to flow - ${failure}`)
 }
 
+/** /flows join <name>: looks the flow up with flow status and starts reporting to it. */
+async function joinFlow($: EngineInterface, name: string): Promise<string> {
+  if (name === '') return 'Usage: /flows join <name>'
+  let result
+  try {
+    result = await $.process.run([settings.flowPath, 'status', name, '--json'], { timeoutMs: reportTimeoutMs })
+  } catch {
+    return problemText({ kind: 'missing', path: settings.flowPath })
+  }
+  const parsed = result.exitCode === 0 ? parseBoard(result.stdout) : null
+  const flow = parsed === null || 'kind' in parsed ? undefined : parsed.flows[0]
+  if (!flow) return `No flow named ${name}.`
+  flowId = flow.id
+  observe($, { kind: 'turn-start' })
+  return `Reporting to ${flow.name}.`
+}
+
 function firstLine(stdout: string, stderr: string): string {
   return ((stdout.trim() || stderr.trim()).split('\n')[0] ?? '').replace(/^error: /, '')
 }
@@ -254,6 +271,7 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: commandName }, async ($, e) => {
     const name = e.args.trim()
+    if (name === 'join' || name.startsWith('join ')) return { text: await joinFlow($, name.slice(4).trim()) }
     if (name === '') {
       const shown = !(await read($, isShown))
       await show($, shown)

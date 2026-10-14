@@ -542,3 +542,32 @@ test('reports the merge request a gh or glab create printed', async ($, on) => {
 
   expect(reports(host)).toEqual([['--flow', 'flow-7', 'merge-request', url]])
 })
+
+test('/flows join <name> starts reporting to that flow', async ($, on) => {
+  const host = installHost(on)
+  const shop221 = demoBoard.flows[0]
+  await start($)
+  host.answer = { exitCode: 0, stdout: JSON.stringify({ ...demoBoard, flows: shop221 ? [shop221] : [], count: 1 }) }
+
+  expect(await $.command.run(typed('join shop-221'))).toEqual(expect.objectContaining({ text: 'Reporting to shop-221.' }))
+  expect(host.calls).toContainEqual(['flow', 'status', 'shop-221', '--json'])
+  await settle(host)
+
+  expect(reports(host)).toEqual([['--flow', shop221?.id ?? '', 'working']])
+})
+
+test('/flows join says when there is no such flow, and how to use it', async ($, on) => {
+  const host = installHost(on)
+  await start($)
+
+  host.answer = { exitCode: 1, stdout: 'error: no flow named shop-999' }
+  expect(await $.command.run(typed('join shop-999'))).toEqual(expect.objectContaining({ text: 'No flow named shop-999.' }))
+  expect(await $.command.run(typed('join'))).toEqual(expect.objectContaining({ text: 'Usage: /flows join <name>' }))
+
+  host.answer = 'missing'
+  expect(await $.command.run(typed('join shop-221'))).toEqual(
+    expect.objectContaining({ text: expect.stringMatching(/flow is not installed/) as unknown as string }),
+  )
+  await settle(host)
+  expect(reports(host)).toEqual([])
+})
