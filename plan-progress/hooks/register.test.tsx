@@ -234,3 +234,18 @@ test('asks for a dock a third of the terminal wide, also when opening unasked la
 
   expect(host.requestedColumns).toEqual([52, 52])
 })
+
+test('the command brings forward a pane that is open but not on screen, instead of hiding it', async ($, on) => {
+  const host = installHost(on)
+  await start($)
+  await $.command.run(typed('docs/plans/billing.md'))
+
+  for (const hidden of [{ isShown: false }, { isPlaced: false }]) {
+    host.panes = host.panes.map(pane => ({ ...pane, ...hidden }))
+    const opens = host.requestedColumns.length
+
+    expect(await $.command.run(typed(''))).toEqual(expect.objectContaining({ text: 'Plan progress shown.' }))
+    expect(host.panes).toHaveLength(1)
+    expect(host.requestedColumns).toHaveLength(opens + 1)
+  }
+})

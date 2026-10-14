@@ -115,6 +115,10 @@ async function isPaneOpen($: EngineInterface): Promise<boolean> {
   return (await $.ui.panes()).some(pane => pane.id === paneId)
 }
 
+async function isPaneOnScreen($: EngineInterface): Promise<boolean> {
+  return (await $.ui.panes()).some(pane => pane.id === paneId && pane.isShown && pane.isPlaced)
+}
+
 async function storedTerminalColumns($: EngineInterface): Promise<number | null> {
   const value = await $.store.get(terminalColumnsKey)
   return typeof value === 'number' ? value : null
@@ -236,7 +240,7 @@ export const register: Register = on => {
       return { text: `Tracking ${fileName(progress.plan)}.` }
     }
 
-    if (await isPaneOpen($)) {
+    if (await isPaneOnScreen($)) {
       await $.ui.close({ id: paneId })
       return { text: 'Plan progress hidden.' }
     }
