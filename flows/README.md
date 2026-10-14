@@ -2,7 +2,9 @@
 
 A Claude Code mod that shows every feature flow you run in parallel in a tabbed board above the prompt: what each flow is doing, which phase it is in, how far its tasks are, and which ones need you.
 
-The flows come from [`flow`](https://github.com/JanSuthacheeva/flow), a command line tool your workers report into. This mod is its board inside Claude Code.
+The flows come from `flow`, a command line tool (an [AXI](https://axi.md)) your workers report into. This mod is its board inside Claude Code.
+
+> **Experimental.** `flow` is not published yet, so this mod is a test you can only run with a local build of it.
 
 ![The All tab: one card per flow with its state, phase rail, task bar and blocker](docs/all.png)
 
@@ -17,7 +19,7 @@ The flows come from [`flow`](https://github.com/JanSuthacheeva/flow), a command 
 
 ## Requirements
 
-- **[flow](https://github.com/JanSuthacheeva/flow)** on your `PATH`, or its path in the `flowPath` setting. The desktop app may not have `~/.cargo/bin` on its `PATH`.
+- **`flow`** (not published yet) on your `PATH`, or its path in the `flowPath` setting. The desktop app may not have `~/.cargo/bin` on its `PATH`.
 - **Claude Code 2.1.299 or later** with function-hook plugins (mods). The mod API is in early access and may change between releases.
 - **A Nerd Font** for the rounded pill ends and the mark in the tab row.
 
