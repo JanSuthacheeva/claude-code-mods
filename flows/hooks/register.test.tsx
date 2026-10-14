@@ -14,6 +14,8 @@ interface Host {
   store: Map<string, unknown>
   state: Map<string, { value: unknown; version: number }>
   toasts: string[]
+  toolResults: Record<string, unknown>
+  failTool: string | null
 }
 
 function installHost(on: On, store: Record<string, unknown> = {}, env: Record<string, string> = {}): Host {
@@ -24,7 +26,13 @@ function installHost(on: On, store: Record<string, unknown> = {}, env: Record<st
     store: new Map(Object.entries(store)),
     state: new Map(),
     toasts: [],
+    toolResults: {},
+    failTool: null,
   }
+  on('tool.call', ($, e) => {
+    if (host.failTool === e.tool) throw new Error(`${e.tool} failed`)
+    return { result: host.toolResults[e.tool] ?? null } as never
+  })
   mock.env(on, env)
   on('ui.toast', ($, e) => {
     host.toasts.push(e.text)
@@ -447,4 +455,90 @@ test('reports ended when the session ends, but not for /clear', async ($, on) =>
   await $.session.end({ reason: 'prompt_input_exit', sessionId: 's1', resume: { id: 's1' } })
 
   expect(reports(host)).toEqual([['--flow', 'flow-7', 'ended']])
+})
+
+test('reports delegated while a foreground subagent runs, then working', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.tool.call({ tool: 'Agent', description: 'implement plan', prompt: 'build it' })
+  await $.tool.call({ tool: 'Agent', description: 'watch logs', prompt: 'x', run_in_background: true } as never)
+  await settle(host)
+
+  expect(reports(host)).toEqual([
+    ['--flow', 'flow-7', 'delegated', 'implement plan'],
+    ['--flow', 'flow-7', 'working'],
+  ])
+})
+
+test('reports working again when a subagent fails, and lets the failure through', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  host.failTool = 'Agent'
+  await start($)
+
+  await expect($.tool.call({ tool: 'Agent', description: 'implement plan', prompt: 'x' })).rejects.toThrow()
+  await settle(host)
+
+  expect(reports(host).map(report => report[2])).toEqual(['delegated', 'working'])
+})
+
+test("ignores a subagent's turn starts while it runs", async ($, on) => {
+  const host = installHost(on, {}, worker)
+  on('tool.call', { tool: 'Agent' }, async (engine, e, next) => {
+    await $.turn.start({ text: '', turnId: 'sub' })
+    return next(e)
+  })
+  await start($)
+
+  await $.tool.call({ tool: 'Agent', description: 'review changes', prompt: 'x' })
+  await settle(host)
+
+  expect(reports(host).map(report => report[2])).toEqual(['delegated', 'working'])
+})
+
+test('reports waiting while Claude asks a question, working once answered', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.tool.call({
+    tool: 'AskUserQuestion',
+    questions: [{ question: 'Which approach?', header: 'Approach', multiSelect: false, options: [] }],
+  } as never)
+  await settle(host)
+
+  expect(reports(host)).toEqual([
+    ['--flow', 'flow-7', 'waiting', 'Which approach?'],
+    ['--flow', 'flow-7', 'working'],
+  ])
+})
+
+test('reports task counts and blocks from plan-progress reports', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  const tool = 'mcp__plan-progress__report'
+  await start($)
+
+  host.toolResults[tool] = 'ok, 4/9 done - next: 5 Add the export'
+  await $.tool.call({ tool, item: '4', status: 'done' } as never)
+  host.toolResults[tool] = 'ok, 4/9 done'
+  await $.tool.call({ tool, item: '5', status: 'blocked', note: 'migration needs a default' } as never)
+  await settle(host)
+
+  expect(reports(host)).toEqual([
+    ['--flow', 'flow-7', 'tasks', '4', '9'],
+    ['--flow', 'flow-7', 'blocked', '5: migration needs a default'],
+  ])
+})
+
+test('reports the merge request a gh or glab create printed', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  const url = 'https://gitlab.com/acme/shop/-/merge_requests/88'
+  await start($)
+
+  host.toolResults['Bash'] = { stdout: `Creating merge request\n${url}\n`, stderr: '', interrupted: false }
+  await $.tool.call({ tool: 'Bash', command: 'glab mr create --fill' })
+  host.toolResults['Bash'] = { stdout: 'ok', stderr: '', interrupted: false }
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  await settle(host)
+
+  expect(reports(host)).toEqual([['--flow', 'flow-7', 'merge-request', url]])
 })

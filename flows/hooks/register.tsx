@@ -190,6 +190,53 @@ export const register: Register = (on, options) => {
     return result
   })
 
+  on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
+    const isBackground = (e as unknown as Record<string, unknown>)['run_in_background'] === true
+    if (isBackground) return next(e)
+    runningAgents += 1
+    observe($, { kind: 'delegated', description: e.description })
+    try {
+      return await next(e)
+    } finally {
+      runningAgents -= 1
+      observe($, { kind: 'agent-done' })
+    }
+  })
+
+  on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
+    const questions = (e as unknown as { questions?: { question?: unknown }[] }).questions
+    const first = questions?.[0]?.question
+    if (typeof first === 'string') observe($, { kind: 'question', text: first })
+    const result = await next(e)
+    observe($, { kind: 'answered' })
+    return result
+  })
+
+  on('tool.call', { tool: 'mcp__plan-progress__report' }, async ($, e, next) => {
+    const result = await next(e)
+    const input = e as unknown as Record<string, unknown>
+    const status = input['status']
+    if ('deny' in result || (status !== 'doing' && status !== 'done' && status !== 'blocked')) return result
+    observe($, {
+      kind: 'plan-report',
+      status,
+      item: String(input['item'] ?? ''),
+      note: typeof input['note'] === 'string' ? input['note'] : null,
+      result: typeof result.result === 'string' ? result.result : JSON.stringify(result.result ?? ''),
+    })
+    return result
+  })
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const result = await next(e)
+    if (flowId !== null && !('deny' in result)) {
+      const output = result.result as { stdout?: unknown } | null | undefined
+      const stdout = typeof output?.stdout === 'string' ? output.stdout : ''
+      observe($, { kind: 'command', command: e.command, stdout })
+    }
+    return result
+  })
+
   on('skill.prompt', ($, e, next) => {
     observe($, { kind: 'skill', skill: e.skill })
     return next(e)
