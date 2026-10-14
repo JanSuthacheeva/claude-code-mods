@@ -583,3 +583,14 @@ test('reports the phase of a skill typed as a slash command, which raises no ski
 
   expect(reports(host)).toEqual([['--flow', 'flow-7', 'phase', 'design']])
 })
+
+test('reports the phase of a skill Claude invokes through the Skill tool', async ($, on) => {
+  const host = installHost(on, {}, worker)
+  await start($)
+
+  await $.tool.call({ tool: 'Skill', skill: 'design-code', args: 'add a separator option' } as never)
+  await $.tool.call({ tool: 'Skill', skill: 'lavish' } as never)
+  await settle(host)
+
+  expect(reports(host)).toEqual([['--flow', 'flow-7', 'phase', 'design']])
+})

@@ -260,6 +260,12 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  on('tool.call', { tool: 'Skill' }, ($, e, next) => {
+    const skill = (e as unknown as Record<string, unknown>)['skill']
+    if (typeof skill === 'string') observe($, { kind: 'skill', skill })
+    return next(e)
+  })
+
   on('skill.prompt', ($, e, next) => {
     observe($, { kind: 'skill', skill: e.skill })
     return next(e)
