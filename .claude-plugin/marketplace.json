@@ -24,7 +24,7 @@
     {
       "name": "flows",
       "source": "./flows",
-      "description": "Experimental: shows every feature flow from the unpublished flow CLI in a tabbed board above the prompt: state, phases, tasks, blockers and timeline"
+      "description": "Experimental: shows every feature flow from the unpublished flow CLI in a tabbed board above the prompt, and makes a worker session report into it"
     }
   ]
 }

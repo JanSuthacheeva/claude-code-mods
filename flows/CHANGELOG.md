@@ -10,4 +10,5 @@ All notable changes to flows are listed here. The format follows [Keep a Changel
 - Digits jump between tabs from an empty prompt; with the band focused `h`/`l` switch tabs, `j`/`k` move over cards or the timeline, Enter opens a card, `g` goes to the top and `o` opens the flow's merge request.
 - `/flows` toggles the board and is remembered across sessions; `/flows <name>` opens that flow's tab.
 - The board stacks above whatever another mod draws in the band and steps aside for surveys.
+- A worker session reports into `flow` by itself: phases from the four phase skills, delegated and working around subagents, waiting when Claude asks or ends its turn, plan-progress task counts and blocks, new merge requests, heartbeats and the session end. It reports when `FLOW_ID` is set or after `/flows join <name>`.
 - A `flowPath` setting for the `flow` binary, and clear messages when it is missing, fails or speaks another contract version.

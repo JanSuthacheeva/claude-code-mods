@@ -66,10 +66,30 @@ Nine flows get a tab and a digit; more show as `+n` and are reached with `l`. Wh
 
 Focus the band with ctrl+x tab or a click; letters typed into the prompt stay in the prompt.
 
+## Reporting from a worker
+
+The same mod makes a Claude Code session report into `flow` by itself, so a worker shows up on the board without anyone typing `flow report`. It only translates what Claude Code shows into `flow`'s agent-neutral events; `flow` keeps the state and works the same for any other agent.
+
+A session reports when it has a flow: `FLOW_ID` set when it starts (as `flow start` will do), or `/flows join <name>` in a running session. Without one it reports nothing.
+
+| When                                                                                      | Reports                                   |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `design-code`, `implement-plan`, `review-changes` or `write-merge-request` starts          | the phase                                 |
+| A subagent runs in the foreground, and when it is done                                    | delegated with its task, then working     |
+| Claude asks a question, or its turn ends                                                  | waiting, with the question or the last line of the answer |
+| Your next prompt, or the answer to a question                                             | working                                   |
+| plan-progress records progress or a block                                                 | the task count, or blocked with the item and note |
+| `gh pr create` or `glab mr create` prints the new URL                                     | the merge request                          |
+| Every 30 seconds                                                                          | a heartbeat, so a crashed worker shows as not responding |
+| The session ends (`/clear` does not count)                                                | ended                                     |
+
+Reports reach `flow` in the order they happened. If `flow` cannot take them, a toast says so once and the worker carries on undisturbed.
+
 ## Commands
 
 - `/flows` shows or hides the board. Your choice is remembered across sessions.
 - `/flows <name>` shows the board on that flow's tab.
+- `/flows join <name>` makes this session report into that flow.
 
 ## Settings
 
