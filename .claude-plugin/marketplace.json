@@ -20,11 +20,6 @@
       "name": "plan-progress",
       "source": "./plan-progress",
       "description": "Shows where you and Claude are in a plan file in a side pane: done, in progress and what is left, with a small tool Claude reports through"
-    },
-    {
-      "name": "flows",
-      "source": "./flows",
-      "description": "Experimental: shows every feature flow from the unpublished flow CLI in a tabbed board above the prompt, and makes a worker session report into it"
     }
   ]
 }
