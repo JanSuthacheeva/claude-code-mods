@@ -48,6 +48,7 @@ Taken in Claude Code on this repository's demo pull requests, and on a GitLab me
 - **Tells Claude about passed pipelines:** with `notifyOnPass` on, a pipeline you saw running that passes adds a note Claude reads with its next turn, without starting one.
 - **Clickable MRs:** each MR number links to its page, and `/mr` opens one in your browser.
 - **Light on resources:** runs `glab` or `gh` and local `git` only, and costs no tokens apart from failure investigations and pass notes. Pipelines are polled only while running or failed; otherwise one call every 2 minutes re-lists the open MRs.
+- **Shared between sessions:** sessions on the same repo, such as a session manager's master and workers, reuse each other's answers from `~/.cache/claude-code-mods/merge-status` (`$XDG_CACHE_HOME` when set): a listing for up to 100 seconds, pipeline details for 25. A checkout, push or new MR always asks afresh, and a failure is never shared.
 - **Clear setup hints:** if the CLI for your forge is missing or not logged in, the row says what to run.
 - **Cross-platform:** macOS, Linux and Windows.
 

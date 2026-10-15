@@ -4,6 +4,7 @@ import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
 import type { BranchStatus, MergeRequest } from '../types'
 import { detectPlatform, isWindows, openUrlArgv } from './browser'
 import type { Platform } from './browser'
+import { cacheDir, cacheEntry, cachePath, detailsMaxAgeMs, freshStdout, listMaxAgeMs } from './cache'
 import { describeProcessError, detectForge, forgeNamed, passedLine, passedNote } from './forge'
 import type { Forge } from './forge'
 import { isTriggeringCommand, remoteBranchName, toFingerprint } from './git'
@@ -21,6 +22,7 @@ import {
 import { iconStyleFrom, statusSegments } from './status-line'
 
 type Listing = { mergeRequests: MergeRequest[] } | { error: string }
+type Answer = Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>
 
 const commandTimeoutMs = 20_000
 const visibilityStoreKey = 'isVisible'
@@ -35,6 +37,12 @@ const tracking = initialTracking()
 const settings = { notifyOnPass: false }
 
 let platform: Platform | null = null
+/** The origin remote of the branch in view, which keys the shared cache. */
+let remoteUrl: string | null = null
+/** Where answers are shared; undefined until looked up, null when there is nowhere. */
+let sharedDir: string | null | undefined
+/** The freshest age a queued refresh asked for. */
+let queuedMaxAgeMs = listMaxAgeMs
 
 // Host commands
 
@@ -46,6 +54,37 @@ async function output($: EngineInterface, argv: readonly string[]): Promise<stri
   const { exitCode, stdout } = await run($, argv)
   const text = stdout.trim()
   return exitCode === 0 && text !== '' ? text : null
+}
+
+// Forge answers, shared between sessions
+
+async function cacheFolder($: EngineInterface): Promise<string | null> {
+  if (sharedDir === undefined) {
+    sharedDir = cacheDir({
+      xdgCacheHome: (await $.env.get('XDG_CACHE_HOME')) ?? null,
+      home: (await $.env.get('HOME')) ?? null,
+      localAppData: (await $.env.get('LOCALAPPDATA')) ?? null,
+    })
+  }
+  return sharedDir
+}
+
+/**
+ * Asks the forge, or reuses what any session asked it less than `maxAgeMs` ago (0: always asks).
+ * Only answers that worked are shared, so a failure is asked again.
+ */
+async function askForge($: EngineInterface, argv: readonly string[], maxAgeMs: number): Promise<Answer> {
+  const dir = await cacheFolder($)
+  const path = dir === null || remoteUrl === null ? null : cachePath(dir, remoteUrl, argv)
+  if (path !== null && maxAgeMs > 0) {
+    const text = await $.fs.read(path).catch(() => null)
+    const stdout = typeof text === 'string' ? freshStdout(text, await $.clock.now(), maxAgeMs) : null
+    if (stdout !== null) return { exitCode: 0, stdout, stderr: '' }
+  }
+  const answer = await run($, argv)
+  if (path !== null && answer.exitCode === 0)
+    await $.fs.write(path, cacheEntry(await $.clock.now(), answer.stdout)).catch(() => undefined)
+  return answer
 }
 
 // Browser
@@ -75,8 +114,10 @@ async function readLocation($: EngineInterface): Promise<Location | null> {
   const localBranch = await output($, ['git', 'branch', '--show-current'])
   if (repo === null || localBranch === null) return null
 
-  const forge = detectForge(await output($, ['git', 'remote', 'get-url', 'origin']))
+  const origin = await output($, ['git', 'remote', 'get-url', 'origin'])
+  const forge = detectForge(origin)
   if (forge === null) return null
+  remoteUrl = origin
 
   const upstreamRef = await output($, ['git', 'rev-parse', '--abbrev-ref', '@{upstream}'])
   return { repo, branch: remoteBranchName(upstreamRef, localBranch), forge: forge.name }
@@ -90,9 +131,14 @@ async function readFingerprint($: EngineInterface): Promise<Fingerprint> {
 
 // Forge
 
-async function listOpen($: EngineInterface, forge: Forge, sourceBranch: string): Promise<Listing> {
+async function listOpen(
+  $: EngineInterface,
+  forge: Forge,
+  sourceBranch: string,
+  maxAgeMs: number,
+): Promise<Listing> {
   try {
-    const { exitCode, stdout, stderr } = await run($, forge.listArgv(sourceBranch))
+    const { exitCode, stdout, stderr } = await askForge($, forge.listArgv(sourceBranch), maxAgeMs)
     if (exitCode !== 0) return { error: forge.describeFailure(`${stderr}\n${stdout}`) }
     return { mergeRequests: openByPriority(forge.parseMergeRequests(stdout)) }
   } catch (error) {
@@ -105,8 +151,10 @@ async function withPipeline(
   forge: Forge,
   mr: MergeRequest,
   previous: MergeRequest | undefined,
+  maxAgeMs: number,
 ): Promise<MergeRequest> {
-  const json = await output($, forge.detailsArgv(mr))
+  const answer = await askForge($, forge.detailsArgv(mr), maxAgeMs).catch(() => null)
+  const json = answer?.exitCode === 0 && answer.stdout.trim() !== '' ? answer.stdout.trim() : null
   if (json === null)
     return { ...mr, pipeline: previous?.pipeline ?? null, hasConflicts: previous?.hasConflicts ?? false }
 
@@ -153,7 +201,8 @@ function isStale(generation: number): boolean {
   return generation !== tracking.generation || tracking.isRefreshing
 }
 
-async function load($: EngineInterface): Promise<void> {
+/** `maxAgeMs` 0 asks the forge afresh, as after a push or a new MR; else a shared answer may do. */
+async function load($: EngineInterface, maxAgeMs: number): Promise<void> {
   const fingerprint = await readFingerprint($)
   const now = await $.clock.now()
   if (hasMovedUpstream(tracking.fingerprint, fingerprint)) tracking.pushGraceUntil = now + pushGracePeriodMs
@@ -173,7 +222,7 @@ async function load($: EngineInterface): Promise<void> {
     current.repo === location.repo && current.branch === location.branch && current.forge === location.forge
   if (!isSameBranch) await setBranchStatus($, { ...location, mergeRequests: null, error: null })
 
-  const listing = await listOpen($, forge, location.branch)
+  const listing = await listOpen($, forge, location.branch, maxAgeMs)
   if ('error' in listing) {
     await setBranchStatus($, { ...location, mergeRequests: null, error: listing.error })
     return
@@ -182,22 +231,25 @@ async function load($: EngineInterface): Promise<void> {
   const previous = isSameBranch ? (current.mergeRequests ?? []) : []
   const previousByNumber = new Map(previous.map(mr => [mr.number, mr]))
   const mergeRequests = await Promise.all(
-    listing.mergeRequests.map(mr => withPipeline($, forge, mr, previousByNumber.get(mr.number))),
+    listing.mergeRequests.map(mr =>
+      withPipeline($, forge, mr, previousByNumber.get(mr.number), Math.min(maxAgeMs, detailsMaxAgeMs)),
+    ),
   )
   await setBranchStatus($, { ...location, mergeRequests, error: null })
   await reportFinished($, forge, location.branch, previous, mergeRequests)
 }
 
-async function refresh($: EngineInterface): Promise<void> {
+async function refresh($: EngineInterface, maxAgeMs: number): Promise<void> {
   if (tracking.isRefreshing) {
     tracking.isRefreshQueued = true
+    queuedMaxAgeMs = Math.min(queuedMaxAgeMs, maxAgeMs)
     return
   }
 
   tracking.isRefreshing = true
   tracking.generation += 1
   try {
-    await load($)
+    await load($, maxAgeMs)
   } catch (error) {
     await setBranchStatus($, { ...(await read($, branchStatus)), error: String(error) })
   } finally {
@@ -206,7 +258,9 @@ async function refresh($: EngineInterface): Promise<void> {
 
   if (tracking.isRefreshQueued) {
     tracking.isRefreshQueued = false
-    await refresh($)
+    const queued = queuedMaxAgeMs
+    queuedMaxAgeMs = listMaxAgeMs
+    await refresh($, queued)
   }
 }
 
@@ -215,9 +269,9 @@ async function recheck($: EngineInterface, status: BranchStatus): Promise<void> 
   tracking.listedAt = await $.clock.now()
   if (status.branch === null || status.forge === null) return
 
-  const listing = await listOpen($, forgeNamed(status.forge), status.branch)
+  const listing = await listOpen($, forgeNamed(status.forge), status.branch, listMaxAgeMs)
   if ('error' in listing || isStale(generation)) return
-  if (!sameNumbers(listing.mergeRequests, status.mergeRequests ?? [])) await refresh($)
+  if (!sameNumbers(listing.mergeRequests, status.mergeRequests ?? [])) await refresh($, listMaxAgeMs)
 }
 
 async function pollPipelines($: EngineInterface, status: BranchStatus): Promise<void> {
@@ -227,7 +281,7 @@ async function pollPipelines($: EngineInterface, status: BranchStatus): Promise<
 
   const forge = forgeNamed(status.forge)
   const previous = status.mergeRequests ?? []
-  const polled = await Promise.all(previous.map(async mr => (needsPolling(mr) ? withPipeline($, forge, mr, mr) : mr)))
+  const polled = await Promise.all(previous.map(async mr => (needsPolling(mr) ? withPipeline($, forge, mr, mr, detailsMaxAgeMs) : mr)))
   if (isStale(generation)) return
 
   await setBranchStatus($, { ...status, mergeRequests: polled })
@@ -238,7 +292,7 @@ async function startSession($: EngineInterface): Promise<void> {
   await update($, isSessionStarted, () => true)
   const visible = (await $.store.get(visibilityStoreKey)) !== false
   await update($, isVisible, () => visible)
-  if (visible) await refresh($)
+  if (visible) await refresh($, listMaxAgeMs)
 }
 
 async function watch($: EngineInterface): Promise<void> {
@@ -251,7 +305,8 @@ async function watch($: EngineInterface): Promise<void> {
   const fingerprint = await readFingerprint($)
   const status = await read($, branchStatus)
   const action = nextWatchAction(tracking, fingerprint, status.mergeRequests ?? [], await $.clock.now())
-  if (action === 'refresh') await refresh($)
+  // The branch or its upstream moved here: what other sessions saw may be out of date.
+  if (action === 'refresh') await refresh($, 0)
   if (action === 'recheck') await recheck($, status)
   if (action === 'poll') await pollPipelines($, status)
 }
@@ -259,7 +314,7 @@ async function watch($: EngineInterface): Promise<void> {
 async function setVisible($: EngineInterface, visible: boolean): Promise<void> {
   await update($, isVisible, () => visible)
   await $.store.set(visibilityStoreKey, visible)
-  if (visible) await refresh($)
+  if (visible) await refresh($, listMaxAgeMs)
 }
 
 // Hooks
@@ -319,7 +374,7 @@ export const register: Register = (on, options) => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const result = await next(e)
-    if (isTriggeringCommand(e.command) && (await read($, isVisible))) void refresh($)
+    if (isTriggeringCommand(e.command) && (await read($, isVisible))) void refresh($, 0)
     return result
   })
 

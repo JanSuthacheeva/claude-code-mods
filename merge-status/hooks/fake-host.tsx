@@ -39,7 +39,11 @@ export interface FakeHost {
   openedWith: string[][]
   prompts: string[]
   sessionState: Map<string, StateRead>
+  /** The file system behind $.fs: the shared cache. A test puts another session's answers here. */
+  files: Map<string, string>
 }
+
+export const cacheFolder = '/home/u/.cache/claude-code-mods/merge-status'
 
 export const projectId = 9
 
@@ -172,9 +176,19 @@ export function installFakeHost(on: On, repo: FakeRepo): FakeHost {
     openedWith: [],
     prompts: [],
     sessionState: new Map(),
+    files: new Map(),
   }
   mock.store(on)
-  mock.env(on, repo.platform === 'windows' ? { OS: 'Windows_NT' } : {})
+  mock.env(on, repo.platform === 'windows' ? { OS: 'Windows_NT' } : { HOME: '/home/u' })
+  on('fs.read', (_$, e) => {
+    const text = host.files.get(e.path)
+    if (text === undefined) throw new Error(`ENOENT: ${e.path}`)
+    return { value: text }
+  })
+  on('fs.write', (_$, e) => {
+    host.files.set(e.path, e.text)
+    return { value: undefined }
+  })
 
   on('process.run', (_$, e) => {
     const failure = forgeClis.has(e.argv[0] ?? '') ? repo.forgeFailure : undefined
