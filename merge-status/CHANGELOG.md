@@ -2,6 +2,12 @@
 
 All notable changes to merge-status are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-10-15
+
+### Changed
+
+- Sessions on the same repo share what `glab` or `gh` answered through a cache in `~/.cache/claude-code-mods/merge-status`, so several sessions at once (a session manager's master and workers) ask the forge about as often as one. A checkout, push or new MR still asks afresh.
+
 ## [0.4.0] - 2026-10-10
 
 ### Added
